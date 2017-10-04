@@ -9,3 +9,4 @@ examples/node/svgdump/
 examples/node/pdf2png/*.png
 
 **/*.idea
+package-lock.json
