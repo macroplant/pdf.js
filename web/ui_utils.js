@@ -537,7 +537,7 @@ function isDataSchema(url) {
   while (i < ii && url[i].trim() === '') {
     i++;
   }
-  return url.substring(i, i + 5).toLowerCase() === 'data:';
+  return url.substr(i, 5).toLowerCase() === 'data:';
 }
 
 /**
@@ -548,9 +548,6 @@ function isDataSchema(url) {
  * @returns {string} Guessed PDF filename.
  */
 function getPDFFileNameFromURL(url, defaultFilename = 'document.pdf') {
-  if (typeof url !== 'string') {
-    return defaultFilename;
-  }
   if (isDataSchema(url)) {
     console.warn('getPDFFileNameFromURL: ' +
                  'ignoring "data:" URL for performance reasons.');

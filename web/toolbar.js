@@ -49,11 +49,13 @@ const SCALE_SELECT_PADDING = 22;
 class Toolbar {
   /**
    * @param {ToolbarOptions} options
+   * @param {HTMLDivElement} mainContainer
    * @param {EventBus} eventBus
    * @param {IL10n} l10n - Localization service.
    */
-  constructor(options, eventBus, l10n = NullL10n) {
+  constructor(options, mainContainer, eventBus, l10n = NullL10n) {
     this.toolbar = options.container;
+    this.mainContainer = mainContainer;
     this.eventBus = eventBus;
     this.l10n = l10n;
     this.items = options;
@@ -78,7 +80,7 @@ class Toolbar {
   }
 
   setPageScale(pageScaleValue, pageScale) {
-    this.pageScaleValue = (pageScaleValue || pageScale).toString();
+    this.pageScaleValue = pageScaleValue;
     this.pageScale = pageScale;
     this._updateUIState(false);
   }
@@ -169,7 +171,9 @@ class Toolbar {
       // Don't update the UI state until we localize the toolbar.
       return;
     }
-    const { pageNumber, pagesCount, pageScaleValue, pageScale, items, } = this;
+    let { pageNumber, pagesCount, items, } = this;
+    let scaleValue = (this.pageScaleValue || this.pageScale).toString();
+    let scale = this.pageScale;
 
     if (resetNumPages) {
       if (this.hasPageLabels) {
@@ -197,17 +201,17 @@ class Toolbar {
     items.previous.disabled = (pageNumber <= 1);
     items.next.disabled = (pageNumber >= pagesCount);
 
-    items.zoomOut.disabled = (pageScale <= MIN_SCALE);
-    items.zoomIn.disabled = (pageScale >= MAX_SCALE);
+    items.zoomOut.disabled = (scale <= MIN_SCALE);
+    items.zoomIn.disabled = (scale >= MAX_SCALE);
 
-    let customScale = Math.round(pageScale * 10000) / 100;
+    let customScale = Math.round(scale * 10000) / 100;
     this.l10n.get('page_scale_percent', { scale: customScale, },
                   '{{scale}}%').then((msg) => {
       let options = items.scaleSelect.options;
       let predefinedValueFound = false;
       for (let i = 0, ii = options.length; i < ii; i++) {
         let option = options[i];
-        if (option.value !== pageScaleValue) {
+        if (option.value !== scaleValue) {
           option.selected = false;
           continue;
         }
@@ -224,7 +228,11 @@ class Toolbar {
   updateLoadingIndicatorState(loading = false) {
     let pageNumberInput = this.items.pageNumber;
 
-    pageNumberInput.classList.toggle(PAGE_NUMBER_LOADING_INDICATOR, loading);
+    if (loading) {
+      pageNumberInput.classList.add(PAGE_NUMBER_LOADING_INDICATOR);
+    } else {
+      pageNumberInput.classList.remove(PAGE_NUMBER_LOADING_INDICATOR);
+    }
   }
 
   _adjustScaleWidth() {

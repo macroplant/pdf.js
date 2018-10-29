@@ -263,9 +263,7 @@ let PDFViewerApplication = {
       AppOptions.set('locale', hashParams['locale']);
     }
 
-    return Promise.all(waitOn).catch((reason) => {
-      console.error(`_parseHashParameters: "${reason.message}".`);
-    });
+    return Promise.all(waitOn);
   },
 
   /**
@@ -288,7 +286,7 @@ let PDFViewerApplication = {
     this.overlayManager = new OverlayManager();
 
     const dispatchToDOM = AppOptions.get('eventBusDispatchToDOM');
-    const eventBus = appConfig.eventBus || getGlobalEventBus(dispatchToDOM);
+    let eventBus = appConfig.eventBus || getGlobalEventBus(dispatchToDOM);
     this.eventBus = eventBus;
 
     let pdfRenderingQueue = new PDFRenderingQueue();
@@ -307,14 +305,8 @@ let PDFViewerApplication = {
     });
     this.downloadManager = downloadManager;
 
-    const findController = new PDFFindController({
-      linkService: pdfLinkService,
-      eventBus,
-    });
-    this.findController = findController;
-
-    const container = appConfig.mainContainer;
-    const viewer = appConfig.viewerContainer;
+    let container = appConfig.mainContainer;
+    let viewer = appConfig.viewerContainer;
     this.pdfViewer = new PDFViewer({
       container,
       viewer,
@@ -322,7 +314,6 @@ let PDFViewerApplication = {
       renderingQueue: pdfRenderingQueue,
       linkService: pdfLinkService,
       downloadManager,
-      findController,
       renderer: AppOptions.get('renderer'),
       enableWebGL: AppOptions.get('enableWebGL'),
       l10n: this.l10n,
@@ -351,7 +342,36 @@ let PDFViewerApplication = {
     });
     pdfLinkService.setHistory(this.pdfHistory);
 
-    this.findBar = new PDFFindBar(appConfig.findBar, eventBus, this.l10n);
+    this.findController = new PDFFindController({
+      pdfViewer: this.pdfViewer,
+      eventBus,
+    });
+    this.findController.onUpdateResultsCount = (matchesCount) => {
+      if (this.supportsIntegratedFind) {
+        this.externalServices.updateFindMatchesCount(matchesCount);
+      } else {
+        this.findBar.updateResultsCount(matchesCount);
+      }
+    };
+    this.findController.onUpdateState = (state, previous, matchesCount) => {
+      if (this.supportsIntegratedFind) {
+        this.externalServices.updateFindControlState({
+          result: state,
+          findPrevious: previous,
+          matchesCount,
+        });
+      } else {
+        this.findBar.updateUIState(state, previous, matchesCount);
+      }
+    };
+
+    this.pdfViewer.setFindController(this.findController);
+
+    // TODO: improve `PDFFindBar` constructor parameter passing
+    let findBarConfig = Object.create(appConfig.findBar);
+    findBarConfig.findController = this.findController;
+    findBarConfig.eventBus = eventBus;
+    this.findBar = new PDFFindBar(findBarConfig, this.l10n);
 
     this.pdfDocumentProperties =
       new PDFDocumentProperties(appConfig.documentProperties,
@@ -363,7 +383,8 @@ let PDFViewerApplication = {
       cursorToolOnLoad: AppOptions.get('cursorToolOnLoad'),
     });
 
-    this.toolbar = new Toolbar(appConfig.toolbar, eventBus, this.l10n);
+    this.toolbar = new Toolbar(appConfig.toolbar, container, eventBus,
+                               this.l10n);
 
     this.secondaryToolbar =
       new SecondaryToolbar(appConfig.secondaryToolbar, container, eventBus);
@@ -397,7 +418,9 @@ let PDFViewerApplication = {
     let sidebarConfig = Object.create(appConfig.sidebar);
     sidebarConfig.pdfViewer = this.pdfViewer;
     sidebarConfig.pdfThumbnailViewer = this.pdfThumbnailViewer;
-    this.pdfSidebar = new PDFSidebar(sidebarConfig, eventBus, this.l10n);
+    sidebarConfig.pdfOutlineViewer = this.pdfOutlineViewer;
+    sidebarConfig.eventBus = eventBus;
+    this.pdfSidebar = new PDFSidebar(sidebarConfig, this.l10n);
     this.pdfSidebar.onToggled = this.forceRendering.bind(this);
 
     this.pdfSidebarResizer = new PDFSidebarResizer(appConfig.sidebarResizer,
@@ -572,8 +595,8 @@ let PDFViewerApplication = {
 
       this.pdfThumbnailViewer.setDocument(null);
       this.pdfViewer.setDocument(null);
-      this.pdfLinkService.setDocument(null);
-      this.pdfDocumentProperties.setDocument(null);
+      this.pdfLinkService.setDocument(null, null);
+      this.pdfDocumentProperties.setDocument(null, null);
     }
     this.store = null;
     this.isInitialViewSet = false;
@@ -586,6 +609,7 @@ let PDFViewerApplication = {
     this.pdfOutlineViewer.reset();
     this.pdfAttachmentViewer.reset();
 
+    this.findController.reset();
     this.findBar.reset();
     this.toolbar.reset();
     this.secondaryToolbar.reset();
@@ -1319,8 +1343,6 @@ let PDFViewerApplication = {
     eventBus.on('documentproperties', webViewerDocumentProperties);
     eventBus.on('find', webViewerFind);
     eventBus.on('findfromurlhash', webViewerFindFromUrlHash);
-    eventBus.on('updatefindmatchescount', webViewerUpdateFindMatchesCount);
-    eventBus.on('updatefindcontrolstate', webViewerUpdateFindControlState);
     if (typeof PDFJSDev === 'undefined' || PDFJSDev.test('GENERIC')) {
       eventBus.on('fileinputchange', webViewerFileInputChange);
     }
@@ -1392,8 +1414,6 @@ let PDFViewerApplication = {
     eventBus.off('documentproperties', webViewerDocumentProperties);
     eventBus.off('find', webViewerFind);
     eventBus.off('findfromurlhash', webViewerFindFromUrlHash);
-    eventBus.off('updatefindmatchescount', webViewerUpdateFindMatchesCount);
-    eventBus.off('updatefindcontrolstate', webViewerUpdateFindControlState);
     if (typeof PDFJSDev === 'undefined' || PDFJSDev.test('GENERIC')) {
       eventBus.off('fileinputchange', webViewerFileInputChange);
     }
@@ -1466,14 +1486,10 @@ function loadFakeWorker() {
         SystemJS.import('pdfjs/core/worker').then((worker) => {
           window.pdfjsWorker = worker;
           resolve();
-        }).catch(reject);
+        });
       } else if (typeof require === 'function') {
-        try {
-          window.pdfjsWorker = require('../src/core/worker.js');
-          resolve();
-        } catch (ex) {
-          reject(ex);
-        }
+        window.pdfjsWorker = require('../src/core/worker.js');
+        resolve();
       } else {
         reject(new Error(
           'SystemJS or CommonJS must be used to load fake worker.'));
@@ -1958,26 +1974,6 @@ function webViewerFindFromUrlHash(evt) {
     highlightAll: true,
     findPrevious: false,
   });
-}
-
-function webViewerUpdateFindMatchesCount({ matchesCount, }) {
-  if (PDFViewerApplication.supportsIntegratedFind) {
-    PDFViewerApplication.externalServices.updateFindMatchesCount(matchesCount);
-  } else {
-    PDFViewerApplication.findBar.updateResultsCount(matchesCount);
-  }
-}
-
-function webViewerUpdateFindControlState({ state, previous, matchesCount, }) {
-  if (PDFViewerApplication.supportsIntegratedFind) {
-    PDFViewerApplication.externalServices.updateFindControlState({
-      result: state,
-      findPrevious: previous,
-      matchesCount,
-    });
-  } else {
-    PDFViewerApplication.findBar.updateUIState(state, previous, matchesCount);
-  }
 }
 
 function webViewerScaleChanging(evt) {
