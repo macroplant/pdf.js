@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -21,11 +28,21 @@ exports.WorkerMessageHandler = exports.WorkerTask = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
 var _util = require('../shared/util');
 
 var _pdf_manager = require('./pdf_manager');
 
+var _is_node = require('../shared/is_node');
+
+var _is_node2 = _interopRequireDefault(_is_node);
+
+var _message_handler = require('../shared/message_handler');
+
 var _primitives = require('./primitives');
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var WorkerTask = function WorkerTaskClosure() {
   function WorkerTask(name) {
@@ -174,7 +191,7 @@ var WorkerMessageHandler = {
       }
       testMessageProcessed = true;
       if (!(data instanceof Uint8Array)) {
-        handler.send('test', 'main', false);
+        handler.send('test', false);
         return;
       }
       var supportTransfers = data[0] === 255;
@@ -208,14 +225,14 @@ var WorkerMessageHandler = {
     var cancelXHRs = null;
     var WorkerTasks = [];
     var apiVersion = docParams.apiVersion;
-    var workerVersion = '1.9.638';
-    if (apiVersion !== null && apiVersion !== workerVersion) {
+    var workerVersion = '2.1.42';
+    if (apiVersion !== workerVersion) {
       throw new Error('The API version "' + apiVersion + '" does not match ' + ('the Worker version "' + workerVersion + '".'));
     }
     var docId = docParams.docId;
     var docBaseUrl = docParams.docBaseUrl;
     var workerHandlerName = docParams.docId + '_worker';
-    var handler = new _util.MessageHandler(workerHandlerName, docId, port);
+    var handler = new _message_handler.MessageHandler(workerHandlerName, docId, port);
     handler.postMessageTransfers = docParams.postMessageTransfers;
     function ensureNotTerminated() {
       if (terminated) {
@@ -233,16 +250,15 @@ var WorkerMessageHandler = {
     function loadDocument(recoveryMode) {
       var loadDocumentCapability = (0, _util.createPromiseCapability)();
       var parseSuccess = function parseSuccess() {
-        var numPagesPromise = pdfManager.ensureDoc('numPages');
-        var fingerprintPromise = pdfManager.ensureDoc('fingerprint');
-        var encryptedPromise = pdfManager.ensureXRef('encrypt');
-        Promise.all([numPagesPromise, fingerprintPromise, encryptedPromise]).then(function onDocReady(results) {
-          var doc = {
-            numPages: results[0],
-            fingerprint: results[1],
-            encrypted: !!results[2]
-          };
-          loadDocumentCapability.resolve(doc);
+        Promise.all([pdfManager.ensureDoc('numPages'), pdfManager.ensureDoc('fingerprint')]).then(function (_ref3) {
+          var _ref4 = _slicedToArray(_ref3, 2),
+              numPages = _ref4[0],
+              fingerprint = _ref4[1];
+
+          loadDocumentCapability.resolve({
+            numPages: numPages,
+            fingerprint: fingerprint
+          });
         }, parseFailure);
       };
       var parseFailure = function parseFailure(e) {
@@ -368,9 +384,9 @@ var WorkerMessageHandler = {
             finishWorkerTask(task);
             pdfManager.updatePassword(data.password);
             pdfManagerReady();
-          }).catch(function (ex) {
+          }).catch(function (boundException) {
             finishWorkerTask(task);
-            handler.send('PasswordException', ex);
+            handler.send('PasswordException', boundException);
           }.bind(null, e));
         } else if (e instanceof _util.InvalidPDFException) {
           handler.send('InvalidPDF', e);
@@ -400,7 +416,7 @@ var WorkerMessageHandler = {
       ensureNotTerminated();
       var evaluatorOptions = {
         forceDataSchema: data.disableCreateObjectURL,
-        maxImageSize: data.maxImageSize === undefined ? -1 : data.maxImageSize,
+        maxImageSize: data.maxImageSize,
         disableFontFace: data.disableFontFace,
         nativeImageDecoderSupport: data.nativeImageDecoderSupport,
         ignoreErrors: data.ignoreErrors,
@@ -412,7 +428,6 @@ var WorkerMessageHandler = {
           throw new Error('Worker was terminated');
         }
         pdfManager = newPdfManager;
-        handler.send('PDFManagerReady', null);
         pdfManager.onLoadedStream().then(function (stream) {
           handler.send('DataLoaded', { length: stream.bytes.byteLength });
         });
@@ -420,16 +435,18 @@ var WorkerMessageHandler = {
     }
     handler.on('GetPage', function wphSetupGetPage(data) {
       return pdfManager.getPage(data.pageIndex).then(function (page) {
-        var rotatePromise = pdfManager.ensure(page, 'rotate');
-        var refPromise = pdfManager.ensure(page, 'ref');
-        var userUnitPromise = pdfManager.ensure(page, 'userUnit');
-        var viewPromise = pdfManager.ensure(page, 'view');
-        return Promise.all([rotatePromise, refPromise, userUnitPromise, viewPromise]).then(function (results) {
+        return Promise.all([pdfManager.ensure(page, 'rotate'), pdfManager.ensure(page, 'ref'), pdfManager.ensure(page, 'userUnit'), pdfManager.ensure(page, 'view')]).then(function (_ref5) {
+          var _ref6 = _slicedToArray(_ref5, 4),
+              rotate = _ref6[0],
+              ref = _ref6[1],
+              userUnit = _ref6[2],
+              view = _ref6[3];
+
           return {
-            rotate: results[0],
-            ref: results[1],
-            userUnit: results[2],
-            view: results[3]
+            rotate: rotate,
+            ref: ref,
+            userUnit: userUnit,
+            view: view
           };
         });
       });
@@ -460,6 +477,9 @@ var WorkerMessageHandler = {
     handler.on('GetOutline', function wphSetupGetOutline(data) {
       return pdfManager.ensureCatalog('documentOutline');
     });
+    handler.on('GetPermissions', function (data) {
+      return pdfManager.ensureCatalog('permissions');
+    });
     handler.on('GetMetadata', function wphSetupGetMetadata(data) {
       return Promise.all([pdfManager.ensureDoc('documentInfo'), pdfManager.ensureCatalog('metadata')]);
     });
@@ -472,9 +492,12 @@ var WorkerMessageHandler = {
     handler.on('GetStats', function wphSetupGetStats(data) {
       return pdfManager.pdfDocument.xref.stats;
     });
-    handler.on('GetAnnotations', function wphSetupGetAnnotations(data) {
-      return pdfManager.getPage(data.pageIndex).then(function (page) {
-        return pdfManager.ensure(page, 'getAnnotationsData', [data.intent]);
+    handler.on('GetAnnotations', function (_ref7) {
+      var pageIndex = _ref7.pageIndex,
+          intent = _ref7.intent;
+
+      return pdfManager.getPage(pageIndex).then(function (page) {
+        return page.getAnnotationsData(intent);
       });
     });
     handler.on('RenderPageRequest', function wphSetupRenderPage(data) {
@@ -572,7 +595,7 @@ var WorkerMessageHandler = {
         task.terminate();
       });
       return Promise.all(waitOn).then(function () {
-        handler.close(new _util.AbortException('Worker was terminated'));
+        handler.destroy();
         handler = null;
       });
     });
@@ -583,7 +606,7 @@ var WorkerMessageHandler = {
     return workerHandlerName;
   },
   initializeFromPort: function initializeFromPort(port) {
-    var handler = new _util.MessageHandler('worker', 'main', port);
+    var handler = new _message_handler.MessageHandler('worker', 'main', port);
     WorkerMessageHandler.setup(handler, port);
     handler.send('ready', null);
   }
@@ -591,7 +614,7 @@ var WorkerMessageHandler = {
 function isMessagePort(maybePort) {
   return typeof maybePort.postMessage === 'function' && 'onmessage' in maybePort;
 }
-if (typeof window === 'undefined' && !(0, _util.isNodeJS)() && typeof self !== 'undefined' && isMessagePort(self)) {
+if (typeof window === 'undefined' && !(0, _is_node2.default)() && typeof self !== 'undefined' && isMessagePort(self)) {
   WorkerMessageHandler.initializeFromPort(self);
 }
 exports.WorkerTask = WorkerTask;

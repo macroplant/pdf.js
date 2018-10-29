@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -25,9 +32,13 @@ var _dom_events = require('./dom_events');
 
 var _pdf = require('../pdf');
 
+var _ui_utils = require('./ui_utils');
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var EXPAND_DIVS_TIMEOUT = 300;
+var MATCH_SCROLL_OFFSET_TOP = -50;
+var MATCH_SCROLL_OFFSET_LEFT = -400;
 
 var TextLayerBuilder = function () {
   function TextLayerBuilder(_ref) {
@@ -56,6 +67,8 @@ var TextLayerBuilder = function () {
     this.findController = findController;
     this.textLayerRenderTask = null;
     this.enhanceTextSelection = enhanceTextSelection;
+    this._boundEvents = Object.create(null);
+    this._bindEvents();
     this._bindMouse();
   }
 
@@ -100,7 +113,7 @@ var TextLayerBuilder = function () {
       this.textLayerRenderTask.promise.then(function () {
         _this.textLayerDiv.appendChild(textLayerFrag);
         _this._finishRendering();
-        _this.updateMatches();
+        _this._updateMatches();
       }, function (reason) {});
     }
   }, {
@@ -124,18 +137,20 @@ var TextLayerBuilder = function () {
       this.textContent = textContent;
     }
   }, {
-    key: 'convertMatches',
-    value: function convertMatches(matches, matchesLength) {
-      var i = 0;
-      var iIndex = 0;
-      var textContentItemsStr = this.textContentItemsStr;
-      var end = textContentItemsStr.length - 1;
-      var queryLen = this.findController === null ? 0 : this.findController.state.query.length;
-      var ret = [];
+    key: '_convertMatches',
+    value: function _convertMatches(matches, matchesLength) {
       if (!matches) {
-        return ret;
+        return [];
       }
-      for (var m = 0, len = matches.length; m < len; m++) {
+      var findController = this.findController,
+          textContentItemsStr = this.textContentItemsStr;
+
+      var i = 0,
+          iIndex = 0;
+      var end = textContentItemsStr.length - 1;
+      var queryLen = findController.state.query.length;
+      var result = [];
+      for (var m = 0, mm = matches.length; m < mm; m++) {
         var matchIdx = matches[m];
         while (i !== end && matchIdx >= iIndex + textContentItemsStr[i].length) {
           iIndex += textContentItemsStr[i].length;
@@ -163,23 +178,25 @@ var TextLayerBuilder = function () {
           divIdx: i,
           offset: matchIdx - iIndex
         };
-        ret.push(match);
+        result.push(match);
       }
-      return ret;
+      return result;
     }
   }, {
-    key: 'renderMatches',
-    value: function renderMatches(matches) {
+    key: '_renderMatches',
+    value: function _renderMatches(matches) {
       if (matches.length === 0) {
         return;
       }
-      var textContentItemsStr = this.textContentItemsStr;
-      var textDivs = this.textDivs;
+      var findController = this.findController,
+          pageIdx = this.pageIdx,
+          textContentItemsStr = this.textContentItemsStr,
+          textDivs = this.textDivs;
+
+      var isSelectedPage = pageIdx === findController.selected.pageIdx;
+      var selectedMatchIdx = findController.selected.matchIdx;
+      var highlightAll = findController.state.highlightAll;
       var prevEnd = null;
-      var pageIdx = this.pageIdx;
-      var isSelectedPage = this.findController === null ? false : pageIdx === this.findController.selected.pageIdx;
-      var selectedMatchIdx = this.findController === null ? -1 : this.findController.selected.matchIdx;
-      var highlightAll = this.findController === null ? false : this.findController.state.highlightAll;
       var infinity = {
         divIdx: -1,
         offset: undefined
@@ -216,8 +233,12 @@ var TextLayerBuilder = function () {
         var end = match.end;
         var isSelected = isSelectedPage && i === selectedMatchIdx;
         var highlightSuffix = isSelected ? ' selected' : '';
-        if (this.findController) {
-          this.findController.updateMatchPosition(pageIdx, i, textDivs, begin.divIdx);
+        if (findController.selected.matchIdx === i && findController.selected.pageIdx === pageIdx) {
+          var spot = {
+            top: MATCH_SCROLL_OFFSET_TOP,
+            left: MATCH_SCROLL_OFFSET_LEFT
+          };
+          (0, _ui_utils.scrollIntoView)(textDivs[begin.divIdx], spot, true);
         }
         if (!prevEnd || begin.divIdx !== prevEnd.divIdx) {
           if (prevEnd !== null) {
@@ -243,16 +264,19 @@ var TextLayerBuilder = function () {
       }
     }
   }, {
-    key: 'updateMatches',
-    value: function updateMatches() {
+    key: '_updateMatches',
+    value: function _updateMatches() {
       if (!this.renderingDone) {
         return;
       }
-      var matches = this.matches;
-      var textDivs = this.textDivs;
-      var textContentItemsStr = this.textContentItemsStr;
+      var findController = this.findController,
+          matches = this.matches,
+          pageIdx = this.pageIdx,
+          textContentItemsStr = this.textContentItemsStr,
+          textDivs = this.textDivs;
+
       var clearedUntilDivIdx = -1;
-      for (var i = 0, len = matches.length; i < len; i++) {
+      for (var i = 0, ii = matches.length; i < ii; i++) {
         var match = matches[i];
         var begin = Math.max(clearedUntilDivIdx, match.begin.divIdx);
         for (var n = begin, end = match.end.divIdx; n <= end; n++) {
@@ -262,28 +286,54 @@ var TextLayerBuilder = function () {
         }
         clearedUntilDivIdx = match.end.divIdx + 1;
       }
-      if (this.findController === null || !this.findController.active) {
+      if (!findController || !findController.highlightMatches) {
         return;
       }
-      var pageMatches = void 0,
-          pageMatchesLength = void 0;
-      if (this.findController !== null) {
-        pageMatches = this.findController.pageMatches[this.pageIdx] || null;
-        pageMatchesLength = this.findController.pageMatchesLength ? this.findController.pageMatchesLength[this.pageIdx] || null : null;
-      }
-      this.matches = this.convertMatches(pageMatches, pageMatchesLength);
-      this.renderMatches(this.matches);
+      var pageMatches = findController.pageMatches[pageIdx] || null;
+      var pageMatchesLength = findController.pageMatchesLength[pageIdx] || null;
+      this.matches = this._convertMatches(pageMatches, pageMatchesLength);
+      this._renderMatches(this.matches);
+    }
+  }, {
+    key: '_bindEvents',
+    value: function _bindEvents() {
+      var _this2 = this;
+
+      var eventBus = this.eventBus,
+          _boundEvents = this._boundEvents;
+
+      _boundEvents.pageCancelled = function (evt) {
+        if (evt.pageNumber !== _this2.pageNumber) {
+          return;
+        }
+        if (_this2.textLayerRenderTask) {
+          console.error('TextLayerBuilder._bindEvents: `this.cancel()` should ' + 'have been called when the page was reset, or rendering cancelled.');
+          return;
+        }
+        for (var name in _boundEvents) {
+          eventBus.off(name.toLowerCase(), _boundEvents[name]);
+          delete _boundEvents[name];
+        }
+      };
+      _boundEvents.updateTextLayerMatches = function (evt) {
+        if (evt.pageIndex !== _this2.pageIdx && evt.pageIndex !== -1) {
+          return;
+        }
+        _this2._updateMatches();
+      };
+      eventBus.on('pagecancelled', _boundEvents.pageCancelled);
+      eventBus.on('updatetextlayermatches', _boundEvents.updateTextLayerMatches);
     }
   }, {
     key: '_bindMouse',
     value: function _bindMouse() {
-      var _this2 = this;
+      var _this3 = this;
 
       var div = this.textLayerDiv;
       var expandDivsTimer = null;
       div.addEventListener('mousedown', function (evt) {
-        if (_this2.enhanceTextSelection && _this2.textLayerRenderTask) {
-          _this2.textLayerRenderTask.expandTextDivs(true);
+        if (_this3.enhanceTextSelection && _this3.textLayerRenderTask) {
+          _this3.textLayerRenderTask.expandTextDivs(true);
           if (expandDivsTimer) {
             clearTimeout(expandDivsTimer);
             expandDivsTimer = null;
@@ -304,10 +354,10 @@ var TextLayerBuilder = function () {
         end.classList.add('active');
       });
       div.addEventListener('mouseup', function () {
-        if (_this2.enhanceTextSelection && _this2.textLayerRenderTask) {
+        if (_this3.enhanceTextSelection && _this3.textLayerRenderTask) {
           expandDivsTimer = setTimeout(function () {
-            if (_this2.textLayerRenderTask) {
-              _this2.textLayerRenderTask.expandTextDivs(false);
+            if (_this3.textLayerRenderTask) {
+              _this3.textLayerRenderTask.expandTextDivs(false);
             }
             expandDivsTimer = null;
           }, EXPAND_DIVS_TIMEOUT);

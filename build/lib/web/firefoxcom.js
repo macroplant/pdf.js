@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -18,6 +25,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.FirefoxCom = exports.DownloadManager = undefined;
+
+var _regenerator = require('babel-runtime/regenerator');
+
+var _regenerator2 = _interopRequireDefault(_regenerator);
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
@@ -30,6 +41,10 @@ var _pdf = require('../pdf');
 var _preferences = require('./preferences');
 
 var _app = require('./app');
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
@@ -81,8 +96,10 @@ var FirefoxCom = function FirefoxComClosure() {
 }();
 
 var DownloadManager = function () {
-  function DownloadManager() {
+  function DownloadManager(options) {
     _classCallCheck(this, DownloadManager);
+
+    this.disableCreateObjectURL = false;
   }
 
   _createClass(DownloadManager, [{
@@ -96,7 +113,7 @@ var DownloadManager = function () {
   }, {
     key: 'downloadData',
     value: function downloadData(data, filename, contentType) {
-      var blobUrl = (0, _pdf.createObjectURL)(data, contentType, false);
+      var blobUrl = (0, _pdf.createObjectURL)(data, contentType);
       FirefoxCom.request('download', {
         blobUrl: blobUrl,
         originalUrl: blobUrl,
@@ -109,12 +126,12 @@ var DownloadManager = function () {
     value: function download(blob, url, filename) {
       var _this = this;
 
-      var blobUrl = URL.createObjectURL(blob);
+      var blobUrl = _pdf.URL.createObjectURL(blob);
       var onResponse = function onResponse(err) {
         if (err && _this.onerror) {
           _this.onerror(err);
         }
-        URL.revokeObjectURL(blobUrl);
+        _pdf.URL.revokeObjectURL(blobUrl);
       };
       FirefoxCom.request('download', {
         blobUrl: blobUrl,
@@ -138,21 +155,59 @@ var FirefoxPreferences = function (_BasePreferences) {
 
   _createClass(FirefoxPreferences, [{
     key: '_writeToStorage',
-    value: function _writeToStorage(prefObj) {
-      return new Promise(function (resolve) {
-        FirefoxCom.request('setPreferences', prefObj, resolve);
-      });
-    }
+    value: function () {
+      var _ref = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee(prefObj) {
+        return _regenerator2.default.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                return _context.abrupt('return', new Promise(function (resolve) {
+                  FirefoxCom.request('setPreferences', prefObj, resolve);
+                }));
+
+              case 1:
+              case 'end':
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function _writeToStorage(_x) {
+        return _ref.apply(this, arguments);
+      }
+
+      return _writeToStorage;
+    }()
   }, {
     key: '_readFromStorage',
-    value: function _readFromStorage(prefObj) {
-      return new Promise(function (resolve) {
-        FirefoxCom.request('getPreferences', prefObj, function (prefStr) {
-          var readPrefs = JSON.parse(prefStr);
-          resolve(readPrefs);
-        });
-      });
-    }
+    value: function () {
+      var _ref2 = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee2(prefObj) {
+        return _regenerator2.default.wrap(function _callee2$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                return _context2.abrupt('return', new Promise(function (resolve) {
+                  FirefoxCom.request('getPreferences', prefObj, function (prefStr) {
+                    var readPrefs = JSON.parse(prefStr);
+                    resolve(readPrefs);
+                  });
+                }));
+
+              case 1:
+              case 'end':
+                return _context2.stop();
+            }
+          }
+        }, _callee2, this);
+      }));
+
+      function _readFromStorage(_x2) {
+        return _ref2.apply(this, arguments);
+      }
+
+      return _readFromStorage;
+    }()
   }]);
 
   return FirefoxPreferences;
@@ -166,62 +221,189 @@ var MozL10n = function () {
   }
 
   _createClass(MozL10n, [{
+    key: 'getLanguage',
+    value: function () {
+      var _ref3 = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee3() {
+        return _regenerator2.default.wrap(function _callee3$(_context3) {
+          while (1) {
+            switch (_context3.prev = _context3.next) {
+              case 0:
+                return _context3.abrupt('return', this.mozL10n.getLanguage());
+
+              case 1:
+              case 'end':
+                return _context3.stop();
+            }
+          }
+        }, _callee3, this);
+      }));
+
+      function getLanguage() {
+        return _ref3.apply(this, arguments);
+      }
+
+      return getLanguage;
+    }()
+  }, {
     key: 'getDirection',
-    value: function getDirection() {
-      return Promise.resolve(this.mozL10n.getDirection());
-    }
+    value: function () {
+      var _ref4 = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee4() {
+        return _regenerator2.default.wrap(function _callee4$(_context4) {
+          while (1) {
+            switch (_context4.prev = _context4.next) {
+              case 0:
+                return _context4.abrupt('return', this.mozL10n.getDirection());
+
+              case 1:
+              case 'end':
+                return _context4.stop();
+            }
+          }
+        }, _callee4, this);
+      }));
+
+      function getDirection() {
+        return _ref4.apply(this, arguments);
+      }
+
+      return getDirection;
+    }()
   }, {
     key: 'get',
-    value: function get(property, args, fallback) {
-      return Promise.resolve(this.mozL10n.get(property, args, fallback));
-    }
+    value: function () {
+      var _ref5 = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee5(property, args, fallback) {
+        return _regenerator2.default.wrap(function _callee5$(_context5) {
+          while (1) {
+            switch (_context5.prev = _context5.next) {
+              case 0:
+                return _context5.abrupt('return', this.mozL10n.get(property, args, fallback));
+
+              case 1:
+              case 'end':
+                return _context5.stop();
+            }
+          }
+        }, _callee5, this);
+      }));
+
+      function get(_x3, _x4, _x5) {
+        return _ref5.apply(this, arguments);
+      }
+
+      return get;
+    }()
   }, {
     key: 'translate',
-    value: function translate(element) {
-      this.mozL10n.translate(element);
-      return Promise.resolve();
-    }
+    value: function () {
+      var _ref6 = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee6(element) {
+        return _regenerator2.default.wrap(function _callee6$(_context6) {
+          while (1) {
+            switch (_context6.prev = _context6.next) {
+              case 0:
+                this.mozL10n.translate(element);
+
+              case 1:
+              case 'end':
+                return _context6.stop();
+            }
+          }
+        }, _callee6, this);
+      }));
+
+      function translate(_x6) {
+        return _ref6.apply(this, arguments);
+      }
+
+      return translate;
+    }()
   }]);
 
   return MozL10n;
 }();
 
 (function listenFindEvents() {
-  var events = ['find', 'findagain', 'findhighlightallchange', 'findcasesensitivitychange'];
-  var handleEvent = function handleEvent(evt) {
+  var events = ['find', 'findagain', 'findhighlightallchange', 'findcasesensitivitychange', 'findentirewordchange', 'findbarclose'];
+  var handleEvent = function handleEvent(_ref7) {
+    var type = _ref7.type,
+        detail = _ref7.detail;
+
     if (!_app.PDFViewerApplication.initialized) {
+      return;
+    }
+    if (type === 'findbarclose') {
+      _app.PDFViewerApplication.eventBus.dispatch('findbarclose', { source: window });
       return;
     }
     _app.PDFViewerApplication.eventBus.dispatch('find', {
       source: window,
-      type: evt.type.substring('find'.length),
-      query: evt.detail.query,
+      type: type.substring('find'.length),
+      query: detail.query,
       phraseSearch: true,
-      caseSensitive: !!evt.detail.caseSensitive,
-      highlightAll: !!evt.detail.highlightAll,
-      findPrevious: !!evt.detail.findPrevious
+      caseSensitive: !!detail.caseSensitive,
+      entireWord: !!detail.entireWord,
+      highlightAll: !!detail.highlightAll,
+      findPrevious: !!detail.findPrevious
     });
   };
-  for (var i = 0, len = events.length; i < len; i++) {
-    window.addEventListener(events[i], handleEvent);
+  var _iteratorNormalCompletion = true;
+  var _didIteratorError = false;
+  var _iteratorError = undefined;
+
+  try {
+    for (var _iterator = events[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+      var event = _step.value;
+
+      window.addEventListener(event, handleEvent);
+    }
+  } catch (err) {
+    _didIteratorError = true;
+    _iteratorError = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion && _iterator.return) {
+        _iterator.return();
+      }
+    } finally {
+      if (_didIteratorError) {
+        throw _iteratorError;
+      }
+    }
   }
 })();
-function FirefoxComDataRangeTransport(length, initialData) {
-  _pdf.PDFDataRangeTransport.call(this, length, initialData);
-}
-FirefoxComDataRangeTransport.prototype = Object.create(_pdf.PDFDataRangeTransport.prototype);
-FirefoxComDataRangeTransport.prototype.requestDataRange = function FirefoxComDataRangeTransport_requestDataRange(begin, end) {
-  FirefoxCom.request('requestDataRange', {
-    begin: begin,
-    end: end
-  });
-};
-FirefoxComDataRangeTransport.prototype.abort = function FirefoxComDataRangeTransport_abort() {
-  FirefoxCom.requestSync('abortLoading', null);
-};
+
+var FirefoxComDataRangeTransport = function (_PDFDataRangeTranspor) {
+  _inherits(FirefoxComDataRangeTransport, _PDFDataRangeTranspor);
+
+  function FirefoxComDataRangeTransport() {
+    _classCallCheck(this, FirefoxComDataRangeTransport);
+
+    return _possibleConstructorReturn(this, (FirefoxComDataRangeTransport.__proto__ || Object.getPrototypeOf(FirefoxComDataRangeTransport)).apply(this, arguments));
+  }
+
+  _createClass(FirefoxComDataRangeTransport, [{
+    key: 'requestDataRange',
+    value: function requestDataRange(begin, end) {
+      FirefoxCom.request('requestDataRange', {
+        begin: begin,
+        end: end
+      });
+    }
+  }, {
+    key: 'abort',
+    value: function abort() {
+      FirefoxCom.requestSync('abortLoading', null);
+    }
+  }]);
+
+  return FirefoxComDataRangeTransport;
+}(_pdf.PDFDataRangeTransport);
+
 _app.PDFViewerApplication.externalServices = {
   updateFindControlState: function updateFindControlState(data) {
     FirefoxCom.request('updateFindControlState', data);
+  },
+  updateFindMatchesCount: function updateFindMatchesCount(data) {
+    FirefoxCom.request('updateFindMatchesCount', data);
   },
   initPassiveLoading: function initPassiveLoading(callbacks) {
     var pdfDataRangeTransport = void 0;
@@ -268,13 +450,13 @@ _app.PDFViewerApplication.externalServices = {
   reportTelemetry: function reportTelemetry(data) {
     FirefoxCom.request('reportTelemetry', JSON.stringify(data));
   },
-  createDownloadManager: function createDownloadManager() {
-    return new DownloadManager();
+  createDownloadManager: function createDownloadManager(options) {
+    return new DownloadManager(options);
   },
   createPreferences: function createPreferences() {
     return new FirefoxPreferences();
   },
-  createL10n: function createL10n() {
+  createL10n: function createL10n(options) {
     var mozL10n = document.mozL10n;
     return new MozL10n(mozL10n);
   },

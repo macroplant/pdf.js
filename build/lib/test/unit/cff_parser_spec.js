@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -38,7 +45,7 @@ describe('CFFParser', function () {
     var exampleFont = '0100040100010101134142434445462b' + '54696d65732d526f6d616e000101011f' + 'f81b00f81c02f81d03f819041c6f000d' + 'fb3cfb6efa7cfa1605e911b8f1120003' + '01010813183030312e30303754696d65' + '7320526f6d616e54696d657300000002' + '010102030e0e7d99f92a99fb7695f773' + '8b06f79a93fc7c8c077d99f85695f75e' + '9908fb6e8cf87393f7108b09a70adf0b' + 'f78e14';
     var fontArr = [];
     for (var i = 0, ii = exampleFont.length; i < ii; i += 2) {
-      var hex = exampleFont.substr(i, 2);
+      var hex = exampleFont.substring(i, i + 2);
       fontArr.push(parseInt(hex, 16));
     }
     fontData = new _stream.Stream(fontArr);
@@ -67,20 +74,6 @@ describe('CFFParser', function () {
     var names = cff.names;
     expect(names.length).toEqual(1);
     expect(names[0]).toEqual('ABCDEF+Times-Roman');
-  });
-  it('sanitizes name index', function () {
-    var index = new _cff_parser.CFFIndex();
-    index.add(['['.charCodeAt(0), 'a'.charCodeAt(0)]);
-    var names = parser.parseNameIndex(index);
-    expect(names).toEqual(['_a']);
-    index = new _cff_parser.CFFIndex();
-    var longName = [];
-    for (var i = 0; i < 129; i++) {
-      longName.push(0);
-    }
-    index.add(longName);
-    names = parser.parseNameIndex(index);
-    expect(names[0].length).toEqual(127);
   });
   it('parses string index', function () {
     var strings = cff.strings;
@@ -221,25 +214,32 @@ describe('CFFParser', function () {
     parser.bytes = bytes.slice();
     var fdSelect = parser.parseFDSelect(0, 2);
     expect(fdSelect.fdSelect).toEqual([0, 1]);
-    expect(fdSelect.raw).toEqual(bytes);
+    expect(fdSelect.format).toEqual(0);
   });
   it('parses fdselect format 3', function () {
     var bytes = new Uint8Array([0x03, 0x00, 0x02, 0x00, 0x00, 0x09, 0x00, 0x02, 0x0a, 0x00, 0x04]);
     parser.bytes = bytes.slice();
     var fdSelect = parser.parseFDSelect(0, 4);
     expect(fdSelect.fdSelect).toEqual([9, 9, 0xa, 0xa]);
-    expect(fdSelect.raw).toEqual(bytes);
+    expect(fdSelect.format).toEqual(3);
   });
   it('parses invalid fdselect format 3 (bug 1146106)', function () {
     var bytes = new Uint8Array([0x03, 0x00, 0x02, 0x00, 0x01, 0x09, 0x00, 0x02, 0x0a, 0x00, 0x04]);
     parser.bytes = bytes.slice();
     var fdSelect = parser.parseFDSelect(0, 4);
     expect(fdSelect.fdSelect).toEqual([9, 9, 0xa, 0xa]);
-    bytes[3] = bytes[4] = 0x00;
-    expect(fdSelect.raw).toEqual(bytes);
+    expect(fdSelect.format).toEqual(3);
   });
 });
 describe('CFFCompiler', function () {
+  function testParser(bytes) {
+    bytes = new Uint8Array(bytes);
+    return new _cff_parser.CFFParser({
+      getBytes: function getBytes() {
+        return bytes;
+      }
+    }, {}, _fonts.SEAC_ANALYSIS_ENABLED);
+  }
   it('encodes integers', function () {
     var c = new _cff_parser.CFFCompiler();
     expect(c.encodeInteger(0)).toEqual([0x8b]);
@@ -256,5 +256,40 @@ describe('CFFCompiler', function () {
     var c = new _cff_parser.CFFCompiler();
     expect(c.encodeFloat(-2.25)).toEqual([0x1e, 0xe2, 0xa2, 0x5f]);
     expect(c.encodeFloat(5e-11)).toEqual([0x1e, 0x5c, 0x11, 0xff]);
+  });
+  it('sanitizes name index', function () {
+    var c = new _cff_parser.CFFCompiler();
+    var nameIndexCompiled = c.compileNameIndex(['[a']);
+    var parser = testParser(nameIndexCompiled);
+    var nameIndex = parser.parseIndex(0);
+    var names = parser.parseNameIndex(nameIndex.obj);
+    expect(names).toEqual(['_a']);
+    var longName = '';
+    for (var i = 0; i < 129; i++) {
+      longName += '_';
+    }
+    nameIndexCompiled = c.compileNameIndex([longName]);
+    parser = testParser(nameIndexCompiled);
+    nameIndex = parser.parseIndex(0);
+    names = parser.parseNameIndex(nameIndex.obj);
+    expect(names[0].length).toEqual(127);
+  });
+  it('compiles fdselect format 0', function () {
+    var fdSelect = new _cff_parser.CFFFDSelect(0, [3, 2, 1]);
+    var c = new _cff_parser.CFFCompiler();
+    var out = c.compileFDSelect(fdSelect);
+    expect(out).toEqual([0, 3, 2, 1]);
+  });
+  it('compiles fdselect format 3', function () {
+    var fdSelect = new _cff_parser.CFFFDSelect(3, [0, 0, 1, 1]);
+    var c = new _cff_parser.CFFCompiler();
+    var out = c.compileFDSelect(fdSelect);
+    expect(out).toEqual([3, 0, 2, 0, 0, 0, 0, 2, 1, 0, 4]);
+  });
+  it('compiles fdselect format 3, single range', function () {
+    var fdSelect = new _cff_parser.CFFFDSelect(3, [0, 0]);
+    var c = new _cff_parser.CFFCompiler();
+    var out = c.compileFDSelect(fdSelect);
+    expect(out).toEqual([3, 0, 1, 0, 0, 0, 0, 2]);
   });
 });

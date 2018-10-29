@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -61,19 +68,19 @@ var PDFPresentationMode = function () {
     if (contextMenuItems) {
       contextMenuItems.contextFirstPage.addEventListener('click', function () {
         _this.contextMenuOpen = false;
-        _this.eventBus.dispatch('firstpage');
+        _this.eventBus.dispatch('firstpage', { source: _this });
       });
       contextMenuItems.contextLastPage.addEventListener('click', function () {
         _this.contextMenuOpen = false;
-        _this.eventBus.dispatch('lastpage');
+        _this.eventBus.dispatch('lastpage', { source: _this });
       });
       contextMenuItems.contextPageRotateCw.addEventListener('click', function () {
         _this.contextMenuOpen = false;
-        _this.eventBus.dispatch('rotatecw');
+        _this.eventBus.dispatch('rotatecw', { source: _this });
       });
       contextMenuItems.contextPageRotateCcw.addEventListener('click', function () {
         _this.contextMenuOpen = false;
-        _this.eventBus.dispatch('rotateccw');
+        _this.eventBus.dispatch('rotateccw', { source: _this });
       });
     }
   }

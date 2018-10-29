@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -18,6 +25,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.AnnotationLayer = undefined;
+
+var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -56,8 +65,7 @@ var AnnotationElementFactory = function () {
               } else if (parameters.data.checkBox) {
                 return new CheckboxWidgetAnnotationElement(parameters);
               }
-              (0, _util.warn)('Unimplemented button widget annotation: pushbutton');
-              break;
+              return new PushButtonWidgetAnnotationElement(parameters);
             case 'Ch':
               return new ChoiceWidgetAnnotationElement(parameters);
           }
@@ -72,6 +80,8 @@ var AnnotationElementFactory = function () {
           return new CircleAnnotationElement(parameters);
         case _util.AnnotationType.POLYLINE:
           return new PolylineAnnotationElement(parameters);
+        case _util.AnnotationType.INK:
+          return new InkAnnotationElement(parameters);
         case _util.AnnotationType.POLYGON:
           return new PolygonAnnotationElement(parameters);
         case _util.AnnotationType.HIGHLIGHT:
@@ -130,8 +140,8 @@ var AnnotationElement = function () {
       var height = data.rect[3] - data.rect[1];
       container.setAttribute('data-annotation-id', data.id);
       var rect = _util.Util.normalizeRect([data.rect[0], page.view[3] - data.rect[1] + page.view[1], data.rect[2], page.view[3] - data.rect[3] + page.view[1]]);
-      _dom_utils.CustomStyle.setProp('transform', container, 'matrix(' + viewport.transform.join(',') + ')');
-      _dom_utils.CustomStyle.setProp('transformOrigin', container, -rect[0] + 'px ' + -rect[1] + 'px');
+      container.style.transform = 'matrix(' + viewport.transform.join(',') + ')';
+      container.style.transformOrigin = -rect[0] + 'px ' + -rect[1] + 'px';
       if (!ignoreBorder && data.borderStyle.width > 0) {
         container.style.borderWidth = data.borderStyle.width + 'px';
         if (data.borderStyle.style !== _util.AnnotationBorderStyleType.UNDERLINE) {
@@ -142,7 +152,7 @@ var AnnotationElement = function () {
         var verticalRadius = data.borderStyle.verticalCornerRadius;
         if (horizontalRadius > 0 || verticalRadius > 0) {
           var radius = horizontalRadius + 'px / ' + verticalRadius + 'px';
-          _dom_utils.CustomStyle.setProp('borderRadius', container, radius);
+          container.style.borderRadius = radius;
         }
         switch (data.borderStyle.style) {
           case _util.AnnotationBorderStyleType.SOLID:
@@ -199,7 +209,7 @@ var AnnotationElement = function () {
   }, {
     key: 'render',
     value: function render() {
-      throw new Error('Abstract method `AnnotationElement.render` called');
+      (0, _util.unreachable)('Abstract method `AnnotationElement.render` called');
     }
   }]);
 
@@ -220,16 +230,20 @@ var LinkAnnotationElement = function (_AnnotationElement) {
     key: 'render',
     value: function render() {
       this.container.className = 'linkAnnotation';
+      var data = this.data,
+          linkService = this.linkService;
+
       var link = document.createElement('a');
       (0, _dom_utils.addLinkAttributes)(link, {
-        url: this.data.url,
-        target: this.data.newWindow ? _dom_utils.LinkTarget.BLANK : undefined
+        url: data.url,
+        target: data.newWindow ? _dom_utils.LinkTarget.BLANK : linkService.externalLinkTarget,
+        rel: linkService.externalLinkRel
       });
-      if (!this.data.url) {
-        if (this.data.action) {
-          this._bindNamedAction(link, this.data.action);
+      if (!data.url) {
+        if (data.action) {
+          this._bindNamedAction(link, data.action);
         } else {
-          this._bindLink(link, this.data.dest);
+          this._bindLink(link, data.dest);
         }
       }
       this.container.appendChild(link);
@@ -446,6 +460,27 @@ var RadioButtonWidgetAnnotationElement = function (_WidgetAnnotationElem3) {
   return RadioButtonWidgetAnnotationElement;
 }(WidgetAnnotationElement);
 
+var PushButtonWidgetAnnotationElement = function (_LinkAnnotationElemen) {
+  _inherits(PushButtonWidgetAnnotationElement, _LinkAnnotationElemen);
+
+  function PushButtonWidgetAnnotationElement() {
+    _classCallCheck(this, PushButtonWidgetAnnotationElement);
+
+    return _possibleConstructorReturn(this, (PushButtonWidgetAnnotationElement.__proto__ || Object.getPrototypeOf(PushButtonWidgetAnnotationElement)).apply(this, arguments));
+  }
+
+  _createClass(PushButtonWidgetAnnotationElement, [{
+    key: 'render',
+    value: function render() {
+      var container = _get(PushButtonWidgetAnnotationElement.prototype.__proto__ || Object.getPrototypeOf(PushButtonWidgetAnnotationElement.prototype), 'render', this).call(this);
+      container.className = 'buttonWidgetAnnotation pushButton';
+      return container;
+    }
+  }]);
+
+  return PushButtonWidgetAnnotationElement;
+}(LinkAnnotationElement);
+
 var ChoiceWidgetAnnotationElement = function (_WidgetAnnotationElem4) {
   _inherits(ChoiceWidgetAnnotationElement, _WidgetAnnotationElem4);
 
@@ -472,7 +507,7 @@ var ChoiceWidgetAnnotationElement = function (_WidgetAnnotationElem4) {
         var optionElement = document.createElement('option');
         optionElement.textContent = option.displayValue;
         optionElement.value = option.exportValue;
-        if (this.data.fieldValue.indexOf(option.displayValue) >= 0) {
+        if (this.data.fieldValue.includes(option.displayValue)) {
           optionElement.setAttribute('selected', true);
         }
         selectElement.appendChild(optionElement);
@@ -498,9 +533,9 @@ var PopupAnnotationElement = function (_AnnotationElement4) {
   _createClass(PopupAnnotationElement, [{
     key: 'render',
     value: function render() {
-      var IGNORE_TYPES = ['Line', 'Square', 'Circle', 'PolyLine', 'Polygon'];
+      var IGNORE_TYPES = ['Line', 'Square', 'Circle', 'PolyLine', 'Polygon', 'Ink'];
       this.container.className = 'popupAnnotation';
-      if (IGNORE_TYPES.indexOf(this.data.parentType) >= 0) {
+      if (IGNORE_TYPES.includes(this.data.parentType)) {
         return this.container;
       }
       var selector = '[data-annotation-id="' + this.data.parentId + '"]';
@@ -517,7 +552,7 @@ var PopupAnnotationElement = function (_AnnotationElement4) {
       });
       var parentLeft = parseFloat(parentElement.style.left);
       var parentWidth = parseFloat(parentElement.style.width);
-      _dom_utils.CustomStyle.setProp('transformOrigin', this.container, -(parentLeft + parentWidth) + 'px -' + parentElement.style.top);
+      this.container.style.transformOrigin = -(parentLeft + parentWidth) + 'px -' + parentElement.style.top;
       this.container.style.left = parentLeft + parentWidth + 'px';
       this.container.appendChild(popup.render());
       return this.container;
@@ -740,11 +775,11 @@ var PolylineAnnotationElement = function (_AnnotationElement8) {
 
     var isRenderable = !!(parameters.data.hasPopup || parameters.data.title || parameters.data.contents);
 
-    var _this14 = _possibleConstructorReturn(this, (PolylineAnnotationElement.__proto__ || Object.getPrototypeOf(PolylineAnnotationElement)).call(this, parameters, isRenderable, true));
+    var _this15 = _possibleConstructorReturn(this, (PolylineAnnotationElement.__proto__ || Object.getPrototypeOf(PolylineAnnotationElement)).call(this, parameters, isRenderable, true));
 
-    _this14.containerClassName = 'polylineAnnotation';
-    _this14.svgElementName = 'svg:polyline';
-    return _this14;
+    _this15.containerClassName = 'polylineAnnotation';
+    _this15.svgElementName = 'svg:polyline';
+    return _this15;
   }
 
   _createClass(PolylineAnnotationElement, [{
@@ -785,18 +820,68 @@ var PolygonAnnotationElement = function (_PolylineAnnotationEl) {
   function PolygonAnnotationElement(parameters) {
     _classCallCheck(this, PolygonAnnotationElement);
 
-    var _this15 = _possibleConstructorReturn(this, (PolygonAnnotationElement.__proto__ || Object.getPrototypeOf(PolygonAnnotationElement)).call(this, parameters));
+    var _this16 = _possibleConstructorReturn(this, (PolygonAnnotationElement.__proto__ || Object.getPrototypeOf(PolygonAnnotationElement)).call(this, parameters));
 
-    _this15.containerClassName = 'polygonAnnotation';
-    _this15.svgElementName = 'svg:polygon';
-    return _this15;
+    _this16.containerClassName = 'polygonAnnotation';
+    _this16.svgElementName = 'svg:polygon';
+    return _this16;
   }
 
   return PolygonAnnotationElement;
 }(PolylineAnnotationElement);
 
-var HighlightAnnotationElement = function (_AnnotationElement9) {
-  _inherits(HighlightAnnotationElement, _AnnotationElement9);
+var InkAnnotationElement = function (_AnnotationElement9) {
+  _inherits(InkAnnotationElement, _AnnotationElement9);
+
+  function InkAnnotationElement(parameters) {
+    _classCallCheck(this, InkAnnotationElement);
+
+    var isRenderable = !!(parameters.data.hasPopup || parameters.data.title || parameters.data.contents);
+
+    var _this17 = _possibleConstructorReturn(this, (InkAnnotationElement.__proto__ || Object.getPrototypeOf(InkAnnotationElement)).call(this, parameters, isRenderable, true));
+
+    _this17.containerClassName = 'inkAnnotation';
+    _this17.svgElementName = 'svg:polyline';
+    return _this17;
+  }
+
+  _createClass(InkAnnotationElement, [{
+    key: 'render',
+    value: function render() {
+      this.container.className = this.containerClassName;
+      var data = this.data;
+      var width = data.rect[2] - data.rect[0];
+      var height = data.rect[3] - data.rect[1];
+      var svg = this.svgFactory.create(width, height);
+      var inkLists = data.inkLists;
+      for (var i = 0, ii = inkLists.length; i < ii; i++) {
+        var inkList = inkLists[i];
+        var points = [];
+        for (var j = 0, jj = inkList.length; j < jj; j++) {
+          var x = inkList[j].x - data.rect[0];
+          var y = data.rect[3] - inkList[j].y;
+          points.push(x + ',' + y);
+        }
+        points = points.join(' ');
+        var borderWidth = data.borderStyle.width;
+        var polyline = this.svgFactory.createElement(this.svgElementName);
+        polyline.setAttribute('points', points);
+        polyline.setAttribute('stroke-width', borderWidth);
+        polyline.setAttribute('stroke', 'transparent');
+        polyline.setAttribute('fill', 'none');
+        this._createPopup(this.container, polyline, data);
+        svg.appendChild(polyline);
+      }
+      this.container.append(svg);
+      return this.container;
+    }
+  }]);
+
+  return InkAnnotationElement;
+}(AnnotationElement);
+
+var HighlightAnnotationElement = function (_AnnotationElement10) {
+  _inherits(HighlightAnnotationElement, _AnnotationElement10);
 
   function HighlightAnnotationElement(parameters) {
     _classCallCheck(this, HighlightAnnotationElement);
@@ -820,8 +905,8 @@ var HighlightAnnotationElement = function (_AnnotationElement9) {
   return HighlightAnnotationElement;
 }(AnnotationElement);
 
-var UnderlineAnnotationElement = function (_AnnotationElement10) {
-  _inherits(UnderlineAnnotationElement, _AnnotationElement10);
+var UnderlineAnnotationElement = function (_AnnotationElement11) {
+  _inherits(UnderlineAnnotationElement, _AnnotationElement11);
 
   function UnderlineAnnotationElement(parameters) {
     _classCallCheck(this, UnderlineAnnotationElement);
@@ -844,8 +929,8 @@ var UnderlineAnnotationElement = function (_AnnotationElement10) {
   return UnderlineAnnotationElement;
 }(AnnotationElement);
 
-var SquigglyAnnotationElement = function (_AnnotationElement11) {
-  _inherits(SquigglyAnnotationElement, _AnnotationElement11);
+var SquigglyAnnotationElement = function (_AnnotationElement12) {
+  _inherits(SquigglyAnnotationElement, _AnnotationElement12);
 
   function SquigglyAnnotationElement(parameters) {
     _classCallCheck(this, SquigglyAnnotationElement);
@@ -868,8 +953,8 @@ var SquigglyAnnotationElement = function (_AnnotationElement11) {
   return SquigglyAnnotationElement;
 }(AnnotationElement);
 
-var StrikeOutAnnotationElement = function (_AnnotationElement12) {
-  _inherits(StrikeOutAnnotationElement, _AnnotationElement12);
+var StrikeOutAnnotationElement = function (_AnnotationElement13) {
+  _inherits(StrikeOutAnnotationElement, _AnnotationElement13);
 
   function StrikeOutAnnotationElement(parameters) {
     _classCallCheck(this, StrikeOutAnnotationElement);
@@ -892,8 +977,8 @@ var StrikeOutAnnotationElement = function (_AnnotationElement12) {
   return StrikeOutAnnotationElement;
 }(AnnotationElement);
 
-var StampAnnotationElement = function (_AnnotationElement13) {
-  _inherits(StampAnnotationElement, _AnnotationElement13);
+var StampAnnotationElement = function (_AnnotationElement14) {
+  _inherits(StampAnnotationElement, _AnnotationElement14);
 
   function StampAnnotationElement(parameters) {
     _classCallCheck(this, StampAnnotationElement);
@@ -916,23 +1001,29 @@ var StampAnnotationElement = function (_AnnotationElement13) {
   return StampAnnotationElement;
 }(AnnotationElement);
 
-var FileAttachmentAnnotationElement = function (_AnnotationElement14) {
-  _inherits(FileAttachmentAnnotationElement, _AnnotationElement14);
+var FileAttachmentAnnotationElement = function (_AnnotationElement15) {
+  _inherits(FileAttachmentAnnotationElement, _AnnotationElement15);
 
   function FileAttachmentAnnotationElement(parameters) {
     _classCallCheck(this, FileAttachmentAnnotationElement);
 
-    var _this21 = _possibleConstructorReturn(this, (FileAttachmentAnnotationElement.__proto__ || Object.getPrototypeOf(FileAttachmentAnnotationElement)).call(this, parameters, true));
+    var _this23 = _possibleConstructorReturn(this, (FileAttachmentAnnotationElement.__proto__ || Object.getPrototypeOf(FileAttachmentAnnotationElement)).call(this, parameters, true));
 
-    var file = _this21.data.file;
-    _this21.filename = (0, _dom_utils.getFilenameFromUrl)(file.filename);
-    _this21.content = file.content;
-    _this21.linkService.onFileAttachmentAnnotation({
-      id: (0, _util.stringToPDFString)(file.filename),
-      filename: file.filename,
-      content: file.content
-    });
-    return _this21;
+    var _this23$data$file = _this23.data.file,
+        filename = _this23$data$file.filename,
+        content = _this23$data$file.content;
+
+    _this23.filename = (0, _dom_utils.getFilenameFromUrl)(filename);
+    _this23.content = content;
+    if (_this23.linkService.eventBus) {
+      _this23.linkService.eventBus.dispatch('fileattachmentannotation', {
+        source: _this23,
+        id: (0, _util.stringToPDFString)(filename),
+        filename: filename,
+        content: content
+      });
+    }
+    return _this23;
   }
 
   _createClass(FileAttachmentAnnotationElement, [{
@@ -984,7 +1075,7 @@ var AnnotationLayer = function () {
           viewport: parameters.viewport,
           linkService: parameters.linkService,
           downloadManager: parameters.downloadManager,
-          imageResourcesPath: parameters.imageResourcesPath || (0, _dom_utils.getDefaultSetting)('imageResourcesPath'),
+          imageResourcesPath: parameters.imageResourcesPath || '',
           renderInteractiveForms: parameters.renderInteractiveForms || false,
           svgFactory: new _dom_utils.DOMSVGFactory()
         });
@@ -1000,7 +1091,7 @@ var AnnotationLayer = function () {
         var data = parameters.annotations[i];
         var element = parameters.div.querySelector('[data-annotation-id="' + data.id + '"]');
         if (element) {
-          _dom_utils.CustomStyle.setProp('transform', element, 'matrix(' + parameters.viewport.transform.join(',') + ')');
+          element.style.transform = 'matrix(' + parameters.viewport.transform.join(',') + ')';
         }
       }
       parameters.div.removeAttribute('hidden');
