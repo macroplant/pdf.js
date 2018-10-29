@@ -260,7 +260,6 @@
 .annotationLayer .circleAnnotation svg ellipse,
 .annotationLayer .polylineAnnotation svg polyline,
 .annotationLayer .polygonAnnotation svg polygon,
-.annotationLayer .inkAnnotation svg polyline,
 .annotationLayer .stampAnnotation,
 .annotationLayer .fileAttachmentAnnotation {
   cursor: pointer;
@@ -814,6 +813,9 @@ html[dir='rtl'] .findbar {
 }
 #findInput::-webkit-input-placeholder {
   color: hsl(0, 0%, 75%);
+}
+#findInput:-ms-input-placeholder {
+  font-style: italic;
 }
 #findInput::-ms-input-placeholder {
   font-style: italic;
