@@ -1,8 +1,4 @@
-/**
- * @licstart The following is the entire license notice for the
- * Javascript code in this page
- *
- * Copyright 2018 Mozilla Foundation
+/* Copyright 2017 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +11,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @licend The above is the entire license notice for the
- * Javascript code in this page
  */
 'use strict';
 
@@ -37,12 +30,13 @@ var SCALE_SELECT_CONTAINER_PADDING = 8;
 var SCALE_SELECT_PADDING = 22;
 
 var Toolbar = function () {
-  function Toolbar(options, eventBus) {
-    var l10n = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : _ui_utils.NullL10n;
+  function Toolbar(options, mainContainer, eventBus) {
+    var l10n = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : _ui_utils.NullL10n;
 
     _classCallCheck(this, Toolbar);
 
     this.toolbar = options.container;
+    this.mainContainer = mainContainer;
     this.eventBus = eventBus;
     this.l10n = l10n;
     this.items = options;
@@ -68,7 +62,7 @@ var Toolbar = function () {
   }, {
     key: 'setPageScale',
     value: function setPageScale(pageScaleValue, pageScale) {
-      this.pageScaleValue = (pageScaleValue || pageScale).toString();
+      this.pageScaleValue = pageScaleValue;
       this.pageScale = pageScale;
       this._updateUIState(false);
     }
@@ -93,16 +87,16 @@ var Toolbar = function () {
 
       var self = this;
       items.previous.addEventListener('click', function () {
-        eventBus.dispatch('previouspage', { source: self });
+        eventBus.dispatch('previouspage');
       });
       items.next.addEventListener('click', function () {
-        eventBus.dispatch('nextpage', { source: self });
+        eventBus.dispatch('nextpage');
       });
       items.zoomIn.addEventListener('click', function () {
-        eventBus.dispatch('zoomin', { source: self });
+        eventBus.dispatch('zoomin');
       });
       items.zoomOut.addEventListener('click', function () {
-        eventBus.dispatch('zoomout', { source: self });
+        eventBus.dispatch('zoomout');
       });
       items.pageNumber.addEventListener('click', function () {
         this.select();
@@ -123,16 +117,16 @@ var Toolbar = function () {
         });
       });
       items.presentationModeButton.addEventListener('click', function () {
-        eventBus.dispatch('presentationmode', { source: self });
+        eventBus.dispatch('presentationmode');
       });
       items.openFile.addEventListener('click', function () {
-        eventBus.dispatch('openfile', { source: self });
+        eventBus.dispatch('openfile');
       });
       items.print.addEventListener('click', function () {
-        eventBus.dispatch('print', { source: self });
+        eventBus.dispatch('print');
       });
       items.download.addEventListener('click', function () {
-        eventBus.dispatch('download', { source: self });
+        eventBus.dispatch('download');
       });
       items.scaleSelect.oncontextmenu = _ui_utils.noContextMenuHandler;
       eventBus.on('localized', function () {
@@ -156,10 +150,10 @@ var Toolbar = function () {
       }
       var pageNumber = this.pageNumber,
           pagesCount = this.pagesCount,
-          pageScaleValue = this.pageScaleValue,
-          pageScale = this.pageScale,
           items = this.items;
 
+      var scaleValue = (this.pageScaleValue || this.pageScale).toString();
+      var scale = this.pageScale;
       if (resetNumPages) {
         if (this.hasPageLabels) {
           items.pageNumber.type = 'text';
@@ -184,15 +178,15 @@ var Toolbar = function () {
       }
       items.previous.disabled = pageNumber <= 1;
       items.next.disabled = pageNumber >= pagesCount;
-      items.zoomOut.disabled = pageScale <= _ui_utils.MIN_SCALE;
-      items.zoomIn.disabled = pageScale >= _ui_utils.MAX_SCALE;
-      var customScale = Math.round(pageScale * 10000) / 100;
+      items.zoomOut.disabled = scale <= _ui_utils.MIN_SCALE;
+      items.zoomIn.disabled = scale >= _ui_utils.MAX_SCALE;
+      var customScale = Math.round(scale * 10000) / 100;
       this.l10n.get('page_scale_percent', { scale: customScale }, '{{scale}}%').then(function (msg) {
         var options = items.scaleSelect.options;
         var predefinedValueFound = false;
         for (var i = 0, ii = options.length; i < ii; i++) {
           var option = options[i];
-          if (option.value !== pageScaleValue) {
+          if (option.value !== scaleValue) {
             option.selected = false;
             continue;
           }
@@ -211,7 +205,11 @@ var Toolbar = function () {
       var loading = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
 
       var pageNumberInput = this.items.pageNumber;
-      pageNumberInput.classList.toggle(PAGE_NUMBER_LOADING_INDICATOR, loading);
+      if (loading) {
+        pageNumberInput.classList.add(PAGE_NUMBER_LOADING_INDICATOR);
+      } else {
+        pageNumberInput.classList.remove(PAGE_NUMBER_LOADING_INDICATOR);
+      }
     }
   }, {
     key: '_adjustScaleWidth',

@@ -1,8 +1,4 @@
-/**
- * @licstart The following is the entire license notice for the
- * Javascript code in this page
- *
- * Copyright 2018 Mozilla Foundation
+/* Copyright 2017 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +11,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @licend The above is the entire license notice for the
- * Javascript code in this page
  */
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 var FontInspector = function FontInspectorClosure() {
-  var fonts, createObjectURL;
+  var fonts;
   var active = false;
   var fontAttribute = 'data-font-name';
   function removeSelection() {
@@ -78,7 +71,6 @@ var FontInspector = function FontInspectorClosure() {
       panel.appendChild(tmp);
       fonts = document.createElement('div');
       panel.appendChild(fonts);
-      createObjectURL = pdfjsLib.createObjectURL;
     },
     cleanup: function cleanup() {
       fonts.textContent = '';
@@ -124,7 +116,8 @@ var FontInspector = function FontInspectorClosure() {
         url = /url\(['"]?([^\)"']+)/.exec(url);
         download.href = url[1];
       } else if (fontObj.data) {
-        download.href = createObjectURL(fontObj.data, fontObj.mimeType);
+        url = URL.createObjectURL(new Blob([fontObj.data], { type: fontObj.mimeType }));
+        download.href = url;
       }
       download.textContent = 'Download';
       var logIt = document.createElement('a');
@@ -252,7 +245,7 @@ var Stepper = function StepperClosure() {
   function simplifyArgs(args) {
     if (typeof args === 'string') {
       var MAX_STRING_LENGTH = 75;
-      return args.length <= MAX_STRING_LENGTH ? args : args.substring(0, MAX_STRING_LENGTH) + '...';
+      return args.length <= MAX_STRING_LENGTH ? args : args.substr(0, MAX_STRING_LENGTH) + '...';
     }
     if ((typeof args === 'undefined' ? 'undefined' : _typeof(args)) !== 'object' || args === null) {
       return args;
@@ -324,7 +317,7 @@ var Stepper = function StepperClosure() {
         line.className = 'line';
         line.dataset.idx = i;
         chunk.appendChild(line);
-        var checked = this.breakPoints.includes(i);
+        var checked = this.breakPoints.indexOf(i) !== -1;
         var args = operatorList.argsArray[i] || [];
         var breakCell = c('td');
         var cbox = c('input');
@@ -444,6 +437,7 @@ var Stats = function Stats() {
     manager: null,
     init: function init(pdfjsLib) {
       this.panel.setAttribute('style', 'padding: 5px;');
+      pdfjsLib.PDFJS.enableStats = true;
     },
 
     enabled: false,
@@ -499,7 +493,7 @@ window.PDFBug = function PDFBugClosure() {
       }
       for (var i = 0; i < tools.length; ++i) {
         var tool = tools[i];
-        if (all || ids.includes(tool.id)) {
+        if (all || ids.indexOf(tool.id) !== -1) {
           tool.enabled = true;
         }
       }

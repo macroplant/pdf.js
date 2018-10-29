@@ -1,8 +1,4 @@
-/**
- * @licstart The following is the entire license notice for the
- * Javascript code in this page
- *
- * Copyright 2018 Mozilla Foundation
+/* Copyright 2017 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +11,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @licend The above is the entire license notice for the
- * Javascript code in this page
  */
 'use strict';
 
@@ -30,7 +23,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 var _util = require('../shared/util');
 
-var _xml_parser = require('./xml_parser');
+var _dom_utils = require('./dom_utils');
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -40,12 +33,10 @@ var Metadata = function () {
 
     (0, _util.assert)(typeof data === 'string', 'Metadata: input is not a string');
     data = this._repair(data);
-    var parser = new _xml_parser.SimpleXMLParser();
-    var xmlDocument = parser.parseFromString(data);
+    var parser = new _dom_utils.SimpleXMLParser();
+    data = parser.parseFromString(data);
     this._metadata = Object.create(null);
-    if (xmlDocument) {
-      this._parse(xmlDocument);
-    }
+    this._parse(data);
   }
 
   _createClass(Metadata, [{
@@ -54,20 +45,6 @@ var Metadata = function () {
       return data.replace(/>\\376\\377([^<]+)/g, function (all, codes) {
         var bytes = codes.replace(/\\([0-3])([0-7])([0-7])/g, function (code, d1, d2, d3) {
           return String.fromCharCode(d1 * 64 + d2 * 8 + d3 * 1);
-        }).replace(/&(amp|apos|gt|lt|quot);/g, function (str, name) {
-          switch (name) {
-            case 'amp':
-              return '&';
-            case 'apos':
-              return '\'';
-            case 'gt':
-              return '>';
-            case 'lt':
-              return '<';
-            case 'quot':
-              return '\"';
-          }
-          throw new Error('_repair: ' + name + ' isn\'t defined.');
         });
         var chars = '';
         for (var i = 0, ii = bytes.length; i < ii; i += 2) {
@@ -83,8 +60,8 @@ var Metadata = function () {
     }
   }, {
     key: '_parse',
-    value: function _parse(xmlDocument) {
-      var rdf = xmlDocument.documentElement;
+    value: function _parse(domDocument) {
+      var rdf = domDocument.documentElement;
       if (rdf.nodeName.toLowerCase() !== 'rdf:rdf') {
         rdf = rdf.firstChild;
         while (rdf && rdf.nodeName.toLowerCase() !== 'rdf:rdf') {
@@ -124,6 +101,12 @@ var Metadata = function () {
     key: 'has',
     value: function has(name) {
       return typeof this._metadata[name] !== 'undefined';
+    }
+  }, {
+    key: 'metadata',
+    get: function get() {
+      (0, _util.deprecated)('`metadata` getter; use `getAll()` instead.');
+      return this.getAll();
     }
   }]);
 

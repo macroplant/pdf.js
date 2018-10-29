@@ -1,8 +1,4 @@
-/**
- * @licstart The following is the entire license notice for the
- * Javascript code in this page
- *
- * Copyright 2018 Mozilla Foundation
+/* Copyright 2017 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +11,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @licend The above is the entire license notice for the
- * Javascript code in this page
  */
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.isDestArraysEqual = exports.isDestHashesEqual = exports.PDFHistory = undefined;
+exports.isDestsEqual = exports.PDFHistory = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
@@ -103,7 +96,7 @@ var PDFHistory = function () {
       this._blockHashChange = 0;
       this._currentHash = getCurrentHash();
       this._numPositionUpdates = 0;
-      this._uid = this._maxUid = 0;
+      this._currentUid = this._uid = 0;
       this._destination = null;
       this._position = null;
       if (!this._isValidState(state) || resetHistory) {
@@ -125,9 +118,6 @@ var PDFHistory = function () {
       }
       var destination = state.destination;
       this._updateInternalState(destination, state.uid, true);
-      if (this._uid > this._maxUid) {
-        this._maxUid = this._uid;
-      }
       if (destination.rotation !== undefined) {
         this.initialRotation = destination.rotation;
       }
@@ -152,7 +142,7 @@ var PDFHistory = function () {
       if (!this.initialized) {
         return;
       }
-      if (namedDest && typeof namedDest !== 'string' || !Array.isArray(explicitDest) || !(Number.isInteger(pageNumber) && pageNumber > 0 && pageNumber <= this.linkService.pagesCount)) {
+      if (namedDest && typeof namedDest !== 'string' || !(explicitDest instanceof Array) || !(Number.isInteger(pageNumber) && pageNumber > 0 && pageNumber <= this.linkService.pagesCount)) {
         console.error('PDFHistory.push: Invalid parameters.');
         return;
       }
@@ -161,7 +151,7 @@ var PDFHistory = function () {
         return;
       }
       var forceReplace = false;
-      if (this._destination && (isDestHashesEqual(this._destination.hash, hash) || isDestArraysEqual(this._destination.dest, explicitDest))) {
+      if (this._destination && (this._destination.hash === hash || isDestsEqual(this._destination.dest, explicitDest))) {
         if (this._destination.page) {
           return;
         }
@@ -209,7 +199,7 @@ var PDFHistory = function () {
         return;
       }
       var state = window.history.state;
-      if (this._isValidState(state) && state.uid < this._maxUid) {
+      if (this._isValidState(state) && state.uid < this._uid - 1) {
         window.history.forward();
       }
     }
@@ -221,15 +211,14 @@ var PDFHistory = function () {
       var shouldReplace = forceReplace || !this._destination;
       var newState = {
         fingerprint: this.fingerprint,
-        uid: shouldReplace ? this._uid : this._uid + 1,
+        uid: shouldReplace ? this._currentUid : this._uid,
         destination: destination
       };
       this._updateInternalState(destination, newState.uid);
       if (shouldReplace) {
-        window.history.replaceState(newState, '');
+        window.history.replaceState(newState, '', document.URL);
       } else {
-        this._maxUid = this._uid;
-        window.history.pushState(newState, '');
+        window.history.pushState(newState, '', document.URL);
       }
     }
   }, {
@@ -242,7 +231,7 @@ var PDFHistory = function () {
       }
       var position = this._position;
       if (temporary) {
-        position = Object.assign(Object.create(null), this._position);
+        position = (0, _ui_utils.cloneObj)(this._position);
         position.temporary = true;
       }
       if (!this._destination) {
@@ -298,7 +287,8 @@ var PDFHistory = function () {
         delete destination.temporary;
       }
       this._destination = destination;
-      this._uid = uid;
+      this._currentUid = uid;
+      this._uid = this._currentUid + 1;
       this._numPositionUpdates = 0;
     }
   }, {
@@ -344,7 +334,7 @@ var PDFHistory = function () {
           hashChanged = this._currentHash !== newHash;
       this._currentHash = newHash;
       if (!state || false) {
-        this._uid++;
+        this._currentUid = this._uid;
 
         var _parseCurrentHash2 = parseCurrentHash(this.linkService),
             hash = _parseCurrentHash2.hash,
@@ -374,9 +364,6 @@ var PDFHistory = function () {
       }
       var destination = state.destination;
       this._updateInternalState(destination, state.uid, true);
-      if (this._uid > this._maxUid) {
-        this._maxUid = this._uid;
-      }
       if ((0, _ui_utils.isValidRotation)(destination.rotation)) {
         this.linkService.rotation = destination.rotation;
       }
@@ -402,7 +389,7 @@ var PDFHistory = function () {
       _boundEvents.updateViewarea = this._updateViewarea.bind(this);
       _boundEvents.popState = this._popState.bind(this);
       _boundEvents.pageHide = function (evt) {
-        if (!_this5._destination || _this5._destination.temporary) {
+        if (!_this5._destination) {
           _this5._tryPushCurrentPosition();
         }
       };
@@ -420,28 +407,12 @@ var PDFHistory = function () {
   return PDFHistory;
 }();
 
-function isDestHashesEqual(destHash, pushHash) {
-  if (typeof destHash !== 'string' || typeof pushHash !== 'string') {
-    return false;
-  }
-  if (destHash === pushHash) {
-    return true;
-  }
-
-  var _parseQueryString = (0, _ui_utils.parseQueryString)(destHash),
-      nameddest = _parseQueryString.nameddest;
-
-  if (nameddest === pushHash) {
-    return true;
-  }
-  return false;
-}
-function isDestArraysEqual(firstDest, secondDest) {
+function isDestsEqual(firstDest, secondDest) {
   function isEntryEqual(first, second) {
     if ((typeof first === 'undefined' ? 'undefined' : _typeof(first)) !== (typeof second === 'undefined' ? 'undefined' : _typeof(second))) {
       return false;
     }
-    if (Array.isArray(first) || Array.isArray(second)) {
+    if (first instanceof Array || second instanceof Array) {
       return false;
     }
     if (first !== null && (typeof first === 'undefined' ? 'undefined' : _typeof(first)) === 'object' && second !== null) {
@@ -457,7 +428,7 @@ function isDestArraysEqual(firstDest, secondDest) {
     }
     return first === second || Number.isNaN(first) && Number.isNaN(second);
   }
-  if (!(Array.isArray(firstDest) && Array.isArray(secondDest))) {
+  if (!(firstDest instanceof Array && secondDest instanceof Array)) {
     return false;
   }
   if (firstDest.length !== secondDest.length) {
@@ -471,5 +442,4 @@ function isDestArraysEqual(firstDest, secondDest) {
   return true;
 }
 exports.PDFHistory = PDFHistory;
-exports.isDestHashesEqual = isDestHashesEqual;
-exports.isDestArraysEqual = isDestArraysEqual;
+exports.isDestsEqual = isDestsEqual;

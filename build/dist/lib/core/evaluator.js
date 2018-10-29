@@ -1,8 +1,4 @@
-/**
- * @licstart The following is the entire license notice for the
- * Javascript code in this page
- *
- * Copyright 2018 Mozilla Foundation
+/* Copyright 2017 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,20 +11,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @licend The above is the entire license notice for the
- * Javascript code in this page
  */
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.PartialEvaluator = undefined;
+exports.PartialEvaluator = exports.OperatorList = undefined;
 
-var _regenerator = require('babel-runtime/regenerator');
-
-var _regenerator2 = _interopRequireDefault(_regenerator);
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 var _util = require('../shared/util');
 
@@ -60,17 +51,9 @@ var _metrics = require('./metrics');
 
 var _function = require('./function');
 
-var _jpeg_stream = require('./jpeg_stream');
-
 var _murmurhash = require('./murmurhash3');
 
-var _operator_list = require('./operator_list');
-
 var _image = require('./image');
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 var PartialEvaluator = function PartialEvaluatorClosure() {
   var DefaultPartialEvaluatorOptions = {
@@ -97,17 +80,16 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
   }
   NativeImageDecoder.prototype = {
     canDecode: function canDecode(image) {
-      return image instanceof _jpeg_stream.JpegStream && NativeImageDecoder.isDecodable(image, this.xref, this.resources, this.pdfFunctionFactory);
+      return image instanceof _stream.JpegStream && NativeImageDecoder.isDecodable(image, this.xref, this.resources, this.pdfFunctionFactory);
     },
     decode: function decode(image) {
       var dict = image.dict;
       var colorSpace = dict.get('ColorSpace', 'CS');
       colorSpace = _colorspace.ColorSpace.parse(colorSpace, this.xref, this.resources, this.pdfFunctionFactory);
-      return this.handler.sendWithPromise('JpegDecode', [image.getIR(this.forceDataSchema), colorSpace.numComps]).then(function (_ref2) {
-        var data = _ref2.data,
-            width = _ref2.width,
-            height = _ref2.height;
-
+      var numComps = colorSpace.numComps;
+      var decodePromise = this.handler.sendWithPromise('JpegDecode', [image.getIR(this.forceDataSchema), numComps]);
+      return decodePromise.then(function (message) {
+        var data = message.data;
         return new _stream.Stream(data, 0, data.length, image.dict);
       });
     }
@@ -128,19 +110,19 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
     var cs = _colorspace.ColorSpace.parse(dict.get('ColorSpace', 'CS'), xref, res, pdfFunctionFactory);
     return (cs.numComps === 1 || cs.numComps === 3) && cs.isDefaultDecode(dict.getArray('Decode', 'D'));
   };
-  function PartialEvaluator(_ref3) {
+  function PartialEvaluator(_ref2) {
     var _this = this;
 
-    var pdfManager = _ref3.pdfManager,
-        xref = _ref3.xref,
-        handler = _ref3.handler,
-        pageIndex = _ref3.pageIndex,
-        idFactory = _ref3.idFactory,
-        fontCache = _ref3.fontCache,
-        builtInCMapCache = _ref3.builtInCMapCache,
-        _ref3$options = _ref3.options,
-        options = _ref3$options === undefined ? null : _ref3$options,
-        pdfFunctionFactory = _ref3.pdfFunctionFactory;
+    var pdfManager = _ref2.pdfManager,
+        xref = _ref2.xref,
+        handler = _ref2.handler,
+        pageIndex = _ref2.pageIndex,
+        idFactory = _ref2.idFactory,
+        fontCache = _ref2.fontCache,
+        builtInCMapCache = _ref2.builtInCMapCache,
+        _ref2$options = _ref2.options,
+        options = _ref2$options === undefined ? null : _ref2$options,
+        pdfFunctionFactory = _ref2.pdfFunctionFactory;
 
     this.pdfManager = pdfManager;
     this.xref = xref;
@@ -151,44 +133,18 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
     this.builtInCMapCache = builtInCMapCache;
     this.options = options || DefaultPartialEvaluatorOptions;
     this.pdfFunctionFactory = pdfFunctionFactory;
-    this.fetchBuiltInCMap = function () {
-      var _ref4 = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee(name) {
-        var data;
-        return _regenerator2.default.wrap(function _callee$(_context) {
-          while (1) {
-            switch (_context.prev = _context.next) {
-              case 0:
-                if (!_this.builtInCMapCache.has(name)) {
-                  _context.next = 2;
-                  break;
-                }
-
-                return _context.abrupt('return', _this.builtInCMapCache.get(name));
-
-              case 2:
-                _context.next = 4;
-                return _this.handler.sendWithPromise('FetchBuiltInCMap', { name: name });
-
-              case 4:
-                data = _context.sent;
-
-                if (data.compressionType !== _util.CMapCompressionType.NONE) {
-                  _this.builtInCMapCache.set(name, data);
-                }
-                return _context.abrupt('return', data);
-
-              case 7:
-              case 'end':
-                return _context.stop();
-            }
-          }
-        }, _callee, _this);
-      }));
-
-      return function (_x) {
-        return _ref4.apply(this, arguments);
-      };
-    }();
+    this.fetchBuiltInCMap = function (name) {
+      var cachedCMap = _this.builtInCMapCache[name];
+      if (cachedCMap) {
+        return Promise.resolve(cachedCMap);
+      }
+      return _this.handler.sendWithPromise('FetchBuiltInCMap', { name: name }).then(function (data) {
+        if (data.compressionType !== _util.CMapCompressionType.NONE) {
+          _this.builtInCMapCache[name] = data;
+        }
+        return data;
+      });
+    };
   }
   var TIME_SLOT_DURATION_MS = 20;
   var CHECK_TIME_EVERY = 100;
@@ -325,11 +281,6 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
       var dict = xobj.dict;
       var matrix = dict.getArray('Matrix');
       var bbox = dict.getArray('BBox');
-      if (Array.isArray(bbox) && bbox.length === 4) {
-        bbox = _util.Util.normalizeRect(bbox);
-      } else {
-        bbox = null;
-      }
       var group = dict.get('Group');
       if (group) {
         var groupOptions = {
@@ -368,30 +319,20 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
         }
       });
     },
-    buildPaintImageXObject: function buildPaintImageXObject(_ref5) {
+    buildPaintImageXObject: function PartialEvaluator_buildPaintImageXObject(resources, image, inline, operatorList, cacheKey, imageCache) {
       var _this2 = this;
-
-      var resources = _ref5.resources,
-          image = _ref5.image,
-          _ref5$isInline = _ref5.isInline,
-          isInline = _ref5$isInline === undefined ? false : _ref5$isInline,
-          operatorList = _ref5.operatorList,
-          cacheKey = _ref5.cacheKey,
-          imageCache = _ref5.imageCache,
-          _ref5$forceDisableNat = _ref5.forceDisableNativeImageDecoder,
-          forceDisableNativeImageDecoder = _ref5$forceDisableNat === undefined ? false : _ref5$forceDisableNat;
 
       var dict = image.dict;
       var w = dict.get('Width', 'W');
       var h = dict.get('Height', 'H');
       if (!(w && (0, _util.isNum)(w)) || !(h && (0, _util.isNum)(h))) {
         (0, _util.warn)('Image dimensions are missing, or not numbers.');
-        return Promise.resolve();
+        return;
       }
       var maxImageSize = this.options.maxImageSize;
       if (maxImageSize !== -1 && w * h > maxImageSize) {
         (0, _util.warn)('Image exceeded maximum allowed size and was removed.');
-        return Promise.resolve();
+        return;
       }
       var imageMask = dict.get('ImageMask', 'IM') || false;
       var imgData, args;
@@ -399,7 +340,7 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
         var width = dict.get('Width', 'W');
         var height = dict.get('Height', 'H');
         var bitStrideLength = width + 7 >> 3;
-        var imgArray = image.getBytes(bitStrideLength * height, true);
+        var imgArray = image.getBytes(bitStrideLength * height);
         var decode = dict.getArray('Decode', 'D');
         imgData = _image.PDFImage.createMask({
           imgArray: imgArray,
@@ -417,51 +358,39 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
             args: args
           };
         }
-        return Promise.resolve();
+        return;
       }
       var softMask = dict.get('SMask', 'SM') || false;
       var mask = dict.get('Mask') || false;
       var SMALL_IMAGE_DIMENSIONS = 200;
-      if (isInline && !softMask && !mask && !(image instanceof _jpeg_stream.JpegStream) && w + h < SMALL_IMAGE_DIMENSIONS) {
+      if (inline && !softMask && !mask && !(image instanceof _stream.JpegStream) && w + h < SMALL_IMAGE_DIMENSIONS) {
         var imageObj = new _image.PDFImage({
           xref: this.xref,
           res: resources,
           image: image,
-          isInline: isInline,
           pdfFunctionFactory: this.pdfFunctionFactory
         });
         imgData = imageObj.createImageData(true);
         operatorList.addOp(_util.OPS.paintInlineImageXObject, [imgData]);
-        return Promise.resolve();
+        return;
       }
-      var nativeImageDecoderSupport = forceDisableNativeImageDecoder ? _util.NativeImageDecoding.NONE : this.options.nativeImageDecoderSupport;
+      var nativeImageDecoderSupport = this.options.nativeImageDecoderSupport;
       var objId = 'img_' + this.idFactory.createObjId();
-      if (nativeImageDecoderSupport !== _util.NativeImageDecoding.NONE && !softMask && !mask && image instanceof _jpeg_stream.JpegStream && NativeImageDecoder.isSupported(image, this.xref, resources, this.pdfFunctionFactory)) {
-        return this.handler.sendWithPromise('obj', [objId, this.pageIndex, 'JpegStream', image.getIR(this.options.forceDataSchema)]).then(function () {
-          operatorList.addDependency(objId);
-          args = [objId, w, h];
-          operatorList.addOp(_util.OPS.paintJpegXObject, args);
-          if (cacheKey) {
-            imageCache[cacheKey] = {
-              fn: _util.OPS.paintJpegXObject,
-              args: args
-            };
-          }
-        }, function (reason) {
-          (0, _util.warn)('Native JPEG decoding failed -- trying to recover: ' + (reason && reason.message));
-          return _this2.buildPaintImageXObject({
-            resources: resources,
-            image: image,
-            isInline: isInline,
-            operatorList: operatorList,
-            cacheKey: cacheKey,
-            imageCache: imageCache,
-            forceDisableNativeImageDecoder: true
-          });
-        });
+      operatorList.addDependency(objId);
+      args = [objId, w, h];
+      if (nativeImageDecoderSupport !== _util.NativeImageDecoding.NONE && !softMask && !mask && image instanceof _stream.JpegStream && NativeImageDecoder.isSupported(image, this.xref, resources, this.pdfFunctionFactory)) {
+        operatorList.addOp(_util.OPS.paintJpegXObject, args);
+        this.handler.send('obj', [objId, this.pageIndex, 'JpegStream', image.getIR(this.options.forceDataSchema)]);
+        if (cacheKey) {
+          imageCache[cacheKey] = {
+            fn: _util.OPS.paintJpegXObject,
+            args: args
+          };
+        }
+        return;
       }
       var nativeImageDecoder = null;
-      if (nativeImageDecoderSupport === _util.NativeImageDecoding.DECODE && (image instanceof _jpeg_stream.JpegStream || mask instanceof _jpeg_stream.JpegStream || softMask instanceof _jpeg_stream.JpegStream)) {
+      if (nativeImageDecoderSupport === _util.NativeImageDecoding.DECODE && (image instanceof _stream.JpegStream || mask instanceof _stream.JpegStream || softMask instanceof _stream.JpegStream)) {
         nativeImageDecoder = new NativeImageDecoder({
           xref: this.xref,
           resources: resources,
@@ -470,14 +399,11 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
           pdfFunctionFactory: this.pdfFunctionFactory
         });
       }
-      operatorList.addDependency(objId);
-      args = [objId, w, h];
       _image.PDFImage.buildImage({
         handler: this.handler,
         xref: this.xref,
         res: resources,
         image: image,
-        isInline: isInline,
         nativeDecoder: nativeImageDecoder,
         pdfFunctionFactory: this.pdfFunctionFactory
       }).then(function (imageObj) {
@@ -494,9 +420,7 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
           args: args
         };
       }
-      return Promise.resolve();
     },
-
     handleSMask: function PartialEvaluator_handleSmask(smask, resources, operatorList, task, stateManager) {
       var smaskContent = smask.get('G');
       var smaskOptions = {
@@ -520,7 +444,7 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
     handleTilingType: function handleTilingType(fn, args, resources, pattern, patternDict, operatorList, task) {
       var _this3 = this;
 
-      var tilingOpList = new _operator_list.OperatorList();
+      var tilingOpList = new OperatorList();
       var resourcesArray = [patternDict.get('Resources'), resources];
       var patternResources = _primitives.Dict.merge(this.xref, resourcesArray);
       return this.getOperatorList({
@@ -576,7 +500,7 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
       var font = state.font;
       var glyphs = font.charsToGlyphs(chars);
       var isAddToPathSet = !!(state.textRenderingMode & _util.TextRenderingMode.ADD_TO_PATH_FLAG);
-      if (font.data && (isAddToPathSet || this.options.disableFontFace || state.fillColorSpace.name === 'Pattern')) {
+      if (font.data && (isAddToPathSet || this.options.disableFontFace)) {
         var buildPath = function buildPath(fontChar) {
           if (!font.renderer.hasBuiltPath(fontChar)) {
             var path = font.renderer.getPathJs(fontChar);
@@ -809,15 +733,15 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
       operatorList.addOp(fn, args);
       return Promise.resolve();
     },
-    getOperatorList: function getOperatorList(_ref6) {
+    getOperatorList: function getOperatorList(_ref3) {
       var _this8 = this;
 
-      var stream = _ref6.stream,
-          task = _ref6.task,
-          resources = _ref6.resources,
-          operatorList = _ref6.operatorList,
-          _ref6$initialState = _ref6.initialState,
-          initialState = _ref6$initialState === undefined ? null : _ref6$initialState;
+      var stream = _ref3.stream,
+          task = _ref3.task,
+          resources = _ref3.resources,
+          operatorList = _ref3.operatorList,
+          _ref3$initialState = _ref3.initialState,
+          initialState = _ref3$initialState === undefined ? null : _ref3$initialState;
 
       resources = resources || _primitives.Dict.empty;
       initialState = initialState || new EvalState();
@@ -864,21 +788,17 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
           switch (fn | 0) {
             case _util.OPS.paintXObject:
               var name = args[0].name;
-              if (name && imageCache[name] !== undefined) {
+              if (!name) {
+                (0, _util.warn)('XObject must be referred to by name.');
+                continue;
+              }
+              if (imageCache[name] !== undefined) {
                 operatorList.addOp(imageCache[name].fn, imageCache[name].args);
                 args = null;
                 continue;
               }
-              next(new Promise(function (resolveXObject, rejectXObject) {
-                if (!name) {
-                  throw new _util.FormatError('XObject must be referred to by name.');
-                }
-                var xobj = xobjs.get(name);
-                if (!xobj) {
-                  operatorList.addOp(fn, args);
-                  resolveXObject();
-                  return;
-                }
+              var xobj = xobjs.get(name);
+              if (xobj) {
                 if (!(0, _primitives.isStream)(xobj)) {
                   throw new _util.FormatError('XObject should be a stream');
                 }
@@ -888,35 +808,22 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
                 }
                 if (type.name === 'Form') {
                   stateManager.save();
-                  self.buildFormXObject(resources, xobj, null, operatorList, task, stateManager.state.clone()).then(function () {
+                  next(self.buildFormXObject(resources, xobj, null, operatorList, task, stateManager.state.clone()).then(function () {
                     stateManager.restore();
-                    resolveXObject();
-                  }, rejectXObject);
+                  }));
                   return;
                 } else if (type.name === 'Image') {
-                  self.buildPaintImageXObject({
-                    resources: resources,
-                    image: xobj,
-                    operatorList: operatorList,
-                    cacheKey: name,
-                    imageCache: imageCache
-                  }).then(resolveXObject, rejectXObject);
-                  return;
+                  self.buildPaintImageXObject(resources, xobj, false, operatorList, name, imageCache);
+                  args = null;
+                  continue;
                 } else if (type.name === 'PS') {
                   (0, _util.info)('Ignored XObject subtype PS');
+                  continue;
                 } else {
                   throw new _util.FormatError('Unhandled XObject subtype ' + type.name);
                 }
-                resolveXObject();
-              }).catch(function (reason) {
-                if (self.options.ignoreErrors) {
-                  self.handler.send('UnsupportedFeature', { featureId: _util.UNSUPPORTED_FEATURES.unknown });
-                  (0, _util.warn)('getOperatorList - ignoring XObject: "' + reason + '".');
-                  return;
-                }
-                throw reason;
-              }));
-              return;
+              }
+              break;
             case _util.OPS.setFont:
               var fontSize = args[1];
               next(self.handleSetFont(resources, args, null, operatorList, task, stateManager.state).then(function (loadedName) {
@@ -934,15 +841,9 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
                   continue;
                 }
               }
-              next(self.buildPaintImageXObject({
-                resources: resources,
-                image: args[0],
-                isInline: true,
-                operatorList: operatorList,
-                cacheKey: cacheKey,
-                imageCache: imageCache
-              }));
-              return;
+              self.buildPaintImageXObject(resources, args[0], true, operatorList, cacheKey, imageCache);
+              args = null;
+              continue;
             case _util.OPS.showText:
               args[0] = self.handleText(args[0], stateManager.state);
               break;
@@ -1105,28 +1006,28 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
       }).catch(function (reason) {
         if (_this8.options.ignoreErrors) {
           _this8.handler.send('UnsupportedFeature', { featureId: _util.UNSUPPORTED_FEATURES.unknown });
-          (0, _util.warn)('getOperatorList - ignoring errors during "' + task.name + '" ' + ('task: "' + reason + '".'));
+          (0, _util.warn)('getOperatorList - ignoring errors during task: ' + task.name);
           closePendingRestoreOPS();
           return;
         }
         throw reason;
       });
     },
-    getTextContent: function getTextContent(_ref7) {
+    getTextContent: function getTextContent(_ref4) {
       var _this9 = this;
 
-      var stream = _ref7.stream,
-          task = _ref7.task,
-          resources = _ref7.resources,
-          _ref7$stateManager = _ref7.stateManager,
-          stateManager = _ref7$stateManager === undefined ? null : _ref7$stateManager,
-          _ref7$normalizeWhites = _ref7.normalizeWhitespace,
-          normalizeWhitespace = _ref7$normalizeWhites === undefined ? false : _ref7$normalizeWhites,
-          _ref7$combineTextItem = _ref7.combineTextItems,
-          combineTextItems = _ref7$combineTextItem === undefined ? false : _ref7$combineTextItem,
-          sink = _ref7.sink,
-          _ref7$seenStyles = _ref7.seenStyles,
-          seenStyles = _ref7$seenStyles === undefined ? Object.create(null) : _ref7$seenStyles;
+      var stream = _ref4.stream,
+          task = _ref4.task,
+          resources = _ref4.resources,
+          _ref4$stateManager = _ref4.stateManager,
+          stateManager = _ref4$stateManager === undefined ? null : _ref4$stateManager,
+          _ref4$normalizeWhites = _ref4.normalizeWhitespace,
+          normalizeWhitespace = _ref4$normalizeWhites === undefined ? false : _ref4$normalizeWhites,
+          _ref4$combineTextItem = _ref4.combineTextItems,
+          combineTextItems = _ref4$combineTextItem === undefined ? false : _ref4$combineTextItem,
+          sink = _ref4.sink,
+          _ref4$seenStyles = _ref4.seenStyles,
+          seenStyles = _ref4$seenStyles === undefined ? Object.create(null) : _ref4$seenStyles;
 
       resources = resources || _primitives.Dict.empty;
       stateManager = stateManager || new StateManager(new TextState());
@@ -1357,162 +1258,183 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
           var fn = operation.fn;
           args = operation.args;
           var advance, diff;
-          switch (fn | 0) {
-            case _util.OPS.setFont:
-              var fontNameArg = args[0].name,
-                  fontSizeArg = args[1];
-              if (textState.font && fontNameArg === textState.fontName && fontSizeArg === textState.fontSize) {
+          var fontNameArg, fontSizeArg;
+          var isSameTextLine;
+          var items;
+          var offset;
+          var j, jj;
+          var breakTextRun;
+          var name;
+          var xobj;
+          var type;
+          var currentState;
+          var xObjStateManager;
+          var matrix;
+          var dictName;
+          var extGState;
+          var gState;
+          var gStateFont;
+
+          var _ret2 = function () {
+            switch (fn | 0) {
+              case _util.OPS.setFont:
+                fontNameArg = args[0].name;
+                fontSizeArg = args[1];
+
+                if (textState.font && fontNameArg === textState.fontName && fontSizeArg === textState.fontSize) {
+                  break;
+                }
+                flushTextContentItem();
+                textState.fontName = fontNameArg;
+                textState.fontSize = fontSizeArg;
+                next(handleSetFont(fontNameArg, null));
+                return {
+                  v: void 0
+                };
+              case _util.OPS.setTextRise:
+                flushTextContentItem();
+                textState.textRise = args[0];
                 break;
-              }
-              flushTextContentItem();
-              textState.fontName = fontNameArg;
-              textState.fontSize = fontSizeArg;
-              next(handleSetFont(fontNameArg, null));
-              return;
-            case _util.OPS.setTextRise:
-              flushTextContentItem();
-              textState.textRise = args[0];
-              break;
-            case _util.OPS.setHScale:
-              flushTextContentItem();
-              textState.textHScale = args[0] / 100;
-              break;
-            case _util.OPS.setLeading:
-              flushTextContentItem();
-              textState.leading = args[0];
-              break;
-            case _util.OPS.moveText:
-              var isSameTextLine = !textState.font ? false : (textState.font.vertical ? args[0] : args[1]) === 0;
-              advance = args[0] - args[1];
-              if (combineTextItems && isSameTextLine && textContentItem.initialized && advance > 0 && advance <= textContentItem.fakeMultiSpaceMax) {
+              case _util.OPS.setHScale:
+                flushTextContentItem();
+                textState.textHScale = args[0] / 100;
+                break;
+              case _util.OPS.setLeading:
+                flushTextContentItem();
+                textState.leading = args[0];
+                break;
+              case _util.OPS.moveText:
+                isSameTextLine = !textState.font ? false : (textState.font.vertical ? args[0] : args[1]) === 0;
+
+                advance = args[0] - args[1];
+                if (combineTextItems && isSameTextLine && textContentItem.initialized && advance > 0 && advance <= textContentItem.fakeMultiSpaceMax) {
+                  textState.translateTextLineMatrix(args[0], args[1]);
+                  textContentItem.width += args[0] - textContentItem.lastAdvanceWidth;
+                  textContentItem.height += args[1] - textContentItem.lastAdvanceHeight;
+                  diff = args[0] - textContentItem.lastAdvanceWidth - (args[1] - textContentItem.lastAdvanceHeight);
+                  addFakeSpaces(diff, textContentItem.str);
+                  break;
+                }
+                flushTextContentItem();
                 textState.translateTextLineMatrix(args[0], args[1]);
-                textContentItem.width += args[0] - textContentItem.lastAdvanceWidth;
-                textContentItem.height += args[1] - textContentItem.lastAdvanceHeight;
-                diff = args[0] - textContentItem.lastAdvanceWidth - (args[1] - textContentItem.lastAdvanceHeight);
-                addFakeSpaces(diff, textContentItem.str);
+                textState.textMatrix = textState.textLineMatrix.slice();
                 break;
-              }
-              flushTextContentItem();
-              textState.translateTextLineMatrix(args[0], args[1]);
-              textState.textMatrix = textState.textLineMatrix.slice();
-              break;
-            case _util.OPS.setLeadingMoveText:
-              flushTextContentItem();
-              textState.leading = -args[1];
-              textState.translateTextLineMatrix(args[0], args[1]);
-              textState.textMatrix = textState.textLineMatrix.slice();
-              break;
-            case _util.OPS.nextLine:
-              flushTextContentItem();
-              textState.carriageReturn();
-              break;
-            case _util.OPS.setTextMatrix:
-              advance = textState.calcTextLineMatrixAdvance(args[0], args[1], args[2], args[3], args[4], args[5]);
-              if (combineTextItems && advance !== null && textContentItem.initialized && advance.value > 0 && advance.value <= textContentItem.fakeMultiSpaceMax) {
-                textState.translateTextLineMatrix(advance.width, advance.height);
-                textContentItem.width += advance.width - textContentItem.lastAdvanceWidth;
-                textContentItem.height += advance.height - textContentItem.lastAdvanceHeight;
-                diff = advance.width - textContentItem.lastAdvanceWidth - (advance.height - textContentItem.lastAdvanceHeight);
-                addFakeSpaces(diff, textContentItem.str);
+              case _util.OPS.setLeadingMoveText:
+                flushTextContentItem();
+                textState.leading = -args[1];
+                textState.translateTextLineMatrix(args[0], args[1]);
+                textState.textMatrix = textState.textLineMatrix.slice();
                 break;
-              }
-              flushTextContentItem();
-              textState.setTextMatrix(args[0], args[1], args[2], args[3], args[4], args[5]);
-              textState.setTextLineMatrix(args[0], args[1], args[2], args[3], args[4], args[5]);
-              break;
-            case _util.OPS.setCharSpacing:
-              textState.charSpacing = args[0];
-              break;
-            case _util.OPS.setWordSpacing:
-              textState.wordSpacing = args[0];
-              break;
-            case _util.OPS.beginText:
-              flushTextContentItem();
-              textState.textMatrix = _util.IDENTITY_MATRIX.slice();
-              textState.textLineMatrix = _util.IDENTITY_MATRIX.slice();
-              break;
-            case _util.OPS.showSpacedText:
-              var items = args[0];
-              var offset;
-              for (var j = 0, jj = items.length; j < jj; j++) {
-                if (typeof items[j] === 'string') {
-                  buildTextContentItem(items[j]);
-                } else if ((0, _util.isNum)(items[j])) {
-                  ensureTextContentItem();
-                  advance = items[j] * textState.fontSize / 1000;
-                  var breakTextRun = false;
-                  if (textState.font.vertical) {
-                    offset = advance;
-                    textState.translateTextMatrix(0, offset);
-                    breakTextRun = textContentItem.textRunBreakAllowed && advance > textContentItem.fakeMultiSpaceMax;
-                    if (!breakTextRun) {
-                      textContentItem.height += offset;
+              case _util.OPS.nextLine:
+                flushTextContentItem();
+                textState.carriageReturn();
+                break;
+              case _util.OPS.setTextMatrix:
+                advance = textState.calcTextLineMatrixAdvance(args[0], args[1], args[2], args[3], args[4], args[5]);
+                if (combineTextItems && advance !== null && textContentItem.initialized && advance.value > 0 && advance.value <= textContentItem.fakeMultiSpaceMax) {
+                  textState.translateTextLineMatrix(advance.width, advance.height);
+                  textContentItem.width += advance.width - textContentItem.lastAdvanceWidth;
+                  textContentItem.height += advance.height - textContentItem.lastAdvanceHeight;
+                  diff = advance.width - textContentItem.lastAdvanceWidth - (advance.height - textContentItem.lastAdvanceHeight);
+                  addFakeSpaces(diff, textContentItem.str);
+                  break;
+                }
+                flushTextContentItem();
+                textState.setTextMatrix(args[0], args[1], args[2], args[3], args[4], args[5]);
+                textState.setTextLineMatrix(args[0], args[1], args[2], args[3], args[4], args[5]);
+                break;
+              case _util.OPS.setCharSpacing:
+                textState.charSpacing = args[0];
+                break;
+              case _util.OPS.setWordSpacing:
+                textState.wordSpacing = args[0];
+                break;
+              case _util.OPS.beginText:
+                flushTextContentItem();
+                textState.textMatrix = _util.IDENTITY_MATRIX.slice();
+                textState.textLineMatrix = _util.IDENTITY_MATRIX.slice();
+                break;
+              case _util.OPS.showSpacedText:
+                items = args[0];
+
+                for (j = 0, jj = items.length; j < jj; j++) {
+                  if (typeof items[j] === 'string') {
+                    buildTextContentItem(items[j]);
+                  } else if ((0, _util.isNum)(items[j])) {
+                    ensureTextContentItem();
+                    advance = items[j] * textState.fontSize / 1000;
+                    breakTextRun = false;
+
+                    if (textState.font.vertical) {
+                      offset = advance;
+                      textState.translateTextMatrix(0, offset);
+                      breakTextRun = textContentItem.textRunBreakAllowed && advance > textContentItem.fakeMultiSpaceMax;
+                      if (!breakTextRun) {
+                        textContentItem.height += offset;
+                      }
+                    } else {
+                      advance = -advance;
+                      offset = advance * textState.textHScale;
+                      textState.translateTextMatrix(offset, 0);
+                      breakTextRun = textContentItem.textRunBreakAllowed && advance > textContentItem.fakeMultiSpaceMax;
+                      if (!breakTextRun) {
+                        textContentItem.width += offset;
+                      }
                     }
-                  } else {
-                    advance = -advance;
-                    offset = advance * textState.textHScale;
-                    textState.translateTextMatrix(offset, 0);
-                    breakTextRun = textContentItem.textRunBreakAllowed && advance > textContentItem.fakeMultiSpaceMax;
-                    if (!breakTextRun) {
-                      textContentItem.width += offset;
+                    if (breakTextRun) {
+                      flushTextContentItem();
+                    } else if (advance > 0) {
+                      addFakeSpaces(advance, textContentItem.str);
                     }
                   }
-                  if (breakTextRun) {
-                    flushTextContentItem();
-                  } else if (advance > 0) {
-                    addFakeSpaces(advance, textContentItem.str);
-                  }
                 }
-              }
-              break;
-            case _util.OPS.showText:
-              buildTextContentItem(args[0]);
-              break;
-            case _util.OPS.nextLineShowText:
-              flushTextContentItem();
-              textState.carriageReturn();
-              buildTextContentItem(args[0]);
-              break;
-            case _util.OPS.nextLineSetSpacingShowText:
-              flushTextContentItem();
-              textState.wordSpacing = args[0];
-              textState.charSpacing = args[1];
-              textState.carriageReturn();
-              buildTextContentItem(args[2]);
-              break;
-            case _util.OPS.paintXObject:
-              flushTextContentItem();
-              if (!xobjs) {
-                xobjs = resources.get('XObject') || _primitives.Dict.empty;
-              }
-              var name = args[0].name;
-              if (name && skipEmptyXObjs[name] !== undefined) {
                 break;
-              }
-              next(new Promise(function (resolveXObject, rejectXObject) {
-                if (!name) {
-                  throw new _util.FormatError('XObject must be referred to by name.');
+              case _util.OPS.showText:
+                buildTextContentItem(args[0]);
+                break;
+              case _util.OPS.nextLineShowText:
+                flushTextContentItem();
+                textState.carriageReturn();
+                buildTextContentItem(args[0]);
+                break;
+              case _util.OPS.nextLineSetSpacingShowText:
+                flushTextContentItem();
+                textState.wordSpacing = args[0];
+                textState.charSpacing = args[1];
+                textState.carriageReturn();
+                buildTextContentItem(args[2]);
+                break;
+              case _util.OPS.paintXObject:
+                flushTextContentItem();
+                if (!xobjs) {
+                  xobjs = resources.get('XObject') || _primitives.Dict.empty;
                 }
-                var xobj = xobjs.get(name);
+                name = args[0].name;
+
+                if (name in skipEmptyXObjs) {
+                  break;
+                }
+                xobj = xobjs.get(name);
+
                 if (!xobj) {
-                  resolveXObject();
-                  return;
+                  break;
                 }
                 if (!(0, _primitives.isStream)(xobj)) {
                   throw new _util.FormatError('XObject should be a stream');
                 }
-                var type = xobj.dict.get('Subtype');
+                type = xobj.dict.get('Subtype');
+
                 if (!(0, _primitives.isName)(type)) {
                   throw new _util.FormatError('XObject should have a Name subtype');
                 }
                 if (type.name !== 'Form') {
                   skipEmptyXObjs[name] = true;
-                  resolveXObject();
-                  return;
+                  break;
                 }
-                var currentState = stateManager.state.clone();
-                var xObjStateManager = new StateManager(currentState);
-                var matrix = xobj.dict.getArray('Matrix');
+                currentState = stateManager.state.clone();
+                xObjStateManager = new StateManager(currentState);
+                matrix = xobj.dict.getArray('Matrix');
+
                 if (Array.isArray(matrix) && matrix.length === 6) {
                   xObjStateManager.transform(matrix);
                 }
@@ -1531,7 +1453,7 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
                     return sink.ready;
                   }
                 };
-                self.getTextContent({
+                next(self.getTextContent({
                   stream: xobj,
                   task: task,
                   resources: xobj.dict.get('Resources') || resources,
@@ -1544,39 +1466,38 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
                   if (!sinkWrapper.enqueueInvoked) {
                     skipEmptyXObjs[name] = true;
                   }
-                  resolveXObject();
-                }, rejectXObject);
-              }).catch(function (reason) {
-                if (reason instanceof _util.AbortException) {
-                  return;
+                }));
+                return {
+                  v: void 0
+                };
+              case _util.OPS.setGState:
+                flushTextContentItem();
+                dictName = args[0];
+                extGState = resources.get('ExtGState');
+
+                if (!(0, _primitives.isDict)(extGState) || !(0, _primitives.isName)(dictName)) {
+                  break;
                 }
-                if (self.options.ignoreErrors) {
-                  (0, _util.warn)('getTextContent - ignoring XObject: "' + reason + '".');
-                  return;
+                gState = extGState.get(dictName.name);
+
+                if (!(0, _primitives.isDict)(gState)) {
+                  break;
                 }
-                throw reason;
-              }));
-              return;
-            case _util.OPS.setGState:
-              flushTextContentItem();
-              var dictName = args[0];
-              var extGState = resources.get('ExtGState');
-              if (!(0, _primitives.isDict)(extGState) || !(0, _primitives.isName)(dictName)) {
+                gStateFont = gState.get('Font');
+
+                if (gStateFont) {
+                  textState.fontName = null;
+                  textState.fontSize = gStateFont[1];
+                  next(handleSetFont(null, gStateFont[0]));
+                  return {
+                    v: void 0
+                  };
+                }
                 break;
-              }
-              var gState = extGState.get(dictName.name);
-              if (!(0, _primitives.isDict)(gState)) {
-                break;
-              }
-              var gStateFont = gState.get('Font');
-              if (gStateFont) {
-                textState.fontName = null;
-                textState.fontSize = gStateFont[1];
-                next(handleSetFont(null, gStateFont[0]));
-                return;
-              }
-              break;
-          }
+            }
+          }();
+
+          if ((typeof _ret2 === 'undefined' ? 'undefined' : _typeof(_ret2)) === "object") return _ret2.v;
           if (textContent.items.length >= sink.desiredSize) {
             stop = true;
             break;
@@ -1594,7 +1515,7 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
           return;
         }
         if (_this9.options.ignoreErrors) {
-          (0, _util.warn)('getTextContent - ignoring errors during "' + task.name + '" ' + ('task: "' + reason + '".'));
+          (0, _util.warn)('getTextContent - ignoring errors during task: ' + task.name);
           flushTextContentItem();
           enqueueChunk();
           return;
@@ -1613,8 +1534,8 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
         var cidSystemInfo = dict.get('CIDSystemInfo');
         if ((0, _primitives.isDict)(cidSystemInfo)) {
           properties.cidSystemInfo = {
-            registry: (0, _util.stringToPDFString)(cidSystemInfo.get('Registry')),
-            ordering: (0, _util.stringToPDFString)(cidSystemInfo.get('Ordering')),
+            registry: cidSystemInfo.get('Registry'),
+            ordering: cidSystemInfo.get('Ordering'),
             supplement: cidSystemInfo.get('Supplement')
           };
         }
@@ -1687,77 +1608,69 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
         return properties;
       });
     },
-    _buildSimpleFontToUnicode: function _buildSimpleFontToUnicode(properties) {
-      (0, _util.assert)(!properties.composite, 'Must be a simple font.');
-      var toUnicode = [],
-          charcode = void 0,
-          glyphName = void 0;
-      var encoding = properties.defaultEncoding.slice();
-      var baseEncodingName = properties.baseEncodingName;
-      var differences = properties.differences;
-      for (charcode in differences) {
-        glyphName = differences[charcode];
-        if (glyphName === '.notdef') {
-          continue;
-        }
-        encoding[charcode] = glyphName;
-      }
-      var glyphsUnicodeMap = (0, _glyphlist.getGlyphsUnicode)();
-      for (charcode in encoding) {
-        glyphName = encoding[charcode];
-        if (glyphName === '') {
-          continue;
-        } else if (glyphsUnicodeMap[glyphName] === undefined) {
-          var code = 0;
-          switch (glyphName[0]) {
-            case 'G':
-              if (glyphName.length === 3) {
-                code = parseInt(glyphName.substring(1), 16);
-              }
-              break;
-            case 'g':
-              if (glyphName.length === 5) {
-                code = parseInt(glyphName.substring(1), 16);
-              }
-              break;
-            case 'C':
-            case 'c':
-              if (glyphName.length >= 3) {
-                code = +glyphName.substring(1);
-              }
-              break;
-            default:
-              var unicode = (0, _unicode.getUnicodeForGlyph)(glyphName, glyphsUnicodeMap);
-              if (unicode !== -1) {
-                code = unicode;
-              }
-          }
-          if (code) {
-            if (baseEncodingName && code === +charcode) {
-              var baseEncoding = (0, _encodings.getEncoding)(baseEncodingName);
-              if (baseEncoding && (glyphName = baseEncoding[charcode])) {
-                toUnicode[charcode] = String.fromCharCode(glyphsUnicodeMap[glyphName]);
-                continue;
-              }
-            }
-            toUnicode[charcode] = String.fromCharCode(code);
-          }
-          continue;
-        }
-        toUnicode[charcode] = String.fromCharCode(glyphsUnicodeMap[glyphName]);
-      }
-      return new _fonts.ToUnicodeMap(toUnicode);
-    },
-    buildToUnicode: function buildToUnicode(properties) {
+    buildToUnicode: function PartialEvaluator_buildToUnicode(properties) {
       properties.hasIncludedToUnicodeMap = !!properties.toUnicode && properties.toUnicode.length > 0;
       if (properties.hasIncludedToUnicodeMap) {
-        if (!properties.composite && properties.hasEncoding) {
-          properties.fallbackToUnicode = this._buildSimpleFontToUnicode(properties);
-        }
         return Promise.resolve(properties.toUnicode);
       }
+      var toUnicode, charcode, glyphName;
       if (!properties.composite) {
-        return Promise.resolve(this._buildSimpleFontToUnicode(properties));
+        toUnicode = [];
+        var encoding = properties.defaultEncoding.slice();
+        var baseEncodingName = properties.baseEncodingName;
+        var differences = properties.differences;
+        for (charcode in differences) {
+          glyphName = differences[charcode];
+          if (glyphName === '.notdef') {
+            continue;
+          }
+          encoding[charcode] = glyphName;
+        }
+        var glyphsUnicodeMap = (0, _glyphlist.getGlyphsUnicode)();
+        for (charcode in encoding) {
+          glyphName = encoding[charcode];
+          if (glyphName === '') {
+            continue;
+          } else if (glyphsUnicodeMap[glyphName] === undefined) {
+            var code = 0;
+            switch (glyphName[0]) {
+              case 'G':
+                if (glyphName.length === 3) {
+                  code = parseInt(glyphName.substr(1), 16);
+                }
+                break;
+              case 'g':
+                if (glyphName.length === 5) {
+                  code = parseInt(glyphName.substr(1), 16);
+                }
+                break;
+              case 'C':
+              case 'c':
+                if (glyphName.length >= 3) {
+                  code = +glyphName.substr(1);
+                }
+                break;
+              default:
+                var unicode = (0, _unicode.getUnicodeForGlyph)(glyphName, glyphsUnicodeMap);
+                if (unicode !== -1) {
+                  code = unicode;
+                }
+            }
+            if (code) {
+              if (baseEncodingName && code === +charcode) {
+                var baseEncoding = (0, _encodings.getEncoding)(baseEncodingName);
+                if (baseEncoding && (glyphName = baseEncoding[charcode])) {
+                  toUnicode[charcode] = String.fromCharCode(glyphsUnicodeMap[glyphName]);
+                  continue;
+                }
+              }
+              toUnicode[charcode] = String.fromCharCode(code);
+            }
+            continue;
+          }
+          toUnicode[charcode] = String.fromCharCode(glyphsUnicodeMap[glyphName]);
+        }
+        return Promise.resolve(new _fonts.ToUnicodeMap(toUnicode));
       }
       if (properties.composite && (properties.cMap.builtInCMap && !(properties.cMap instanceof _cmap.IdentityCMap) || properties.cidSystemInfo.registry === 'Adobe' && (properties.cidSystemInfo.ordering === 'GB1' || properties.cidSystemInfo.ordering === 'CNS1' || properties.cidSystemInfo.ordering === 'Japan1' || properties.cidSystemInfo.ordering === 'Korea1'))) {
         var registry = properties.cidSystemInfo.registry;
@@ -1769,7 +1682,7 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
           useCMap: null
         }).then(function (ucs2CMap) {
           var cMap = properties.cMap;
-          var toUnicode = [];
+          toUnicode = [];
           cMap.forEach(function (charcode, cid) {
             if (cid > 0xffff) {
               throw new _util.FormatError('Max size of CID is 65,535');
@@ -1784,7 +1697,6 @@ var PartialEvaluator = function PartialEvaluatorClosure() {
       }
       return Promise.resolve(new _fonts.IdentityToUnicodeMap(properties.firstChar, properties.lastChar));
     },
-
     readToUnicode: function PartialEvaluator_readToUnicode(toUnicode) {
       var cmapObj = toUnicode;
       if ((0, _primitives.isName)(cmapObj)) {
@@ -2217,7 +2129,7 @@ var TranslatedFont = function TranslatedFontClosure() {
         var key = charProcKeys[i];
         loadCharProcsPromise = loadCharProcsPromise.then(function () {
           var glyphStream = charProcs.get(key);
-          var operatorList = new _operator_list.OperatorList();
+          var operatorList = new OperatorList();
           return type3Evaluator.getOperatorList({
             stream: glyphStream,
             task: task,
@@ -2228,7 +2140,7 @@ var TranslatedFont = function TranslatedFontClosure() {
             parentOperatorList.addDependencies(operatorList.dependencies);
           }).catch(function (reason) {
             (0, _util.warn)('Type3 font resource "' + key + '" is not available.');
-            var operatorList = new _operator_list.OperatorList();
+            var operatorList = new OperatorList();
             charProcOperatorList[key] = operatorList.getIR();
           });
         });
@@ -2244,6 +2156,103 @@ var TranslatedFont = function TranslatedFontClosure() {
     }
   };
   return TranslatedFont;
+}();
+var OperatorList = function OperatorListClosure() {
+  var CHUNK_SIZE = 1000;
+  var CHUNK_SIZE_ABOUT = CHUNK_SIZE - 5;
+  function getTransfers(queue) {
+    var transfers = [];
+    var fnArray = queue.fnArray,
+        argsArray = queue.argsArray;
+    for (var i = 0, ii = queue.length; i < ii; i++) {
+      switch (fnArray[i]) {
+        case _util.OPS.paintInlineImageXObject:
+        case _util.OPS.paintInlineImageXObjectGroup:
+        case _util.OPS.paintImageMaskXObject:
+          var arg = argsArray[i][0];
+          if (!arg.cached) {
+            transfers.push(arg.data.buffer);
+          }
+          break;
+      }
+    }
+    return transfers;
+  }
+  function OperatorList(intent, messageHandler, pageIndex) {
+    this.messageHandler = messageHandler;
+    this.fnArray = [];
+    this.argsArray = [];
+    this.dependencies = Object.create(null);
+    this._totalLength = 0;
+    this.pageIndex = pageIndex;
+    this.intent = intent;
+  }
+  OperatorList.prototype = {
+    get length() {
+      return this.argsArray.length;
+    },
+    get totalLength() {
+      return this._totalLength + this.length;
+    },
+    addOp: function addOp(fn, args) {
+      this.fnArray.push(fn);
+      this.argsArray.push(args);
+      if (this.messageHandler) {
+        if (this.fnArray.length >= CHUNK_SIZE) {
+          this.flush();
+        } else if (this.fnArray.length >= CHUNK_SIZE_ABOUT && (fn === _util.OPS.restore || fn === _util.OPS.endText)) {
+          this.flush();
+        }
+      }
+    },
+    addDependency: function addDependency(dependency) {
+      if (dependency in this.dependencies) {
+        return;
+      }
+      this.dependencies[dependency] = true;
+      this.addOp(_util.OPS.dependency, [dependency]);
+    },
+    addDependencies: function addDependencies(dependencies) {
+      for (var key in dependencies) {
+        this.addDependency(key);
+      }
+    },
+    addOpList: function addOpList(opList) {
+      _util.Util.extendObj(this.dependencies, opList.dependencies);
+      for (var i = 0, ii = opList.length; i < ii; i++) {
+        this.addOp(opList.fnArray[i], opList.argsArray[i]);
+      }
+    },
+    getIR: function getIR() {
+      return {
+        fnArray: this.fnArray,
+        argsArray: this.argsArray,
+        length: this.length
+      };
+    },
+    flush: function flush(lastChunk) {
+      if (this.intent !== 'oplist') {
+        new QueueOptimizer().optimize(this);
+      }
+      var transfers = getTransfers(this);
+      var length = this.length;
+      this._totalLength += length;
+      this.messageHandler.send('RenderPageChunk', {
+        operatorList: {
+          fnArray: this.fnArray,
+          argsArray: this.argsArray,
+          lastChunk: lastChunk,
+          length: length
+        },
+        pageIndex: this.pageIndex,
+        intent: this.intent
+      }, transfers);
+      this.dependencies = Object.create(null);
+      this.fnArray.length = 0;
+      this.argsArray.length = 0;
+    }
+  };
+  return OperatorList;
 }();
 var StateManager = function StateManagerClosure() {
   function StateManager(initialState) {
@@ -2753,13 +2762,11 @@ var EvaluatorPreprocessor = function EvaluatorPreprocessorClosure() {
     t['nul'] = null;
     t['null'] = null;
   });
-  var MAX_INVALID_PATH_OPS = 20;
   function EvaluatorPreprocessor(stream, xref, stateManager) {
     this.opMap = getOPMap();
     this.parser = new _parser.Parser(new _parser.Lexer(stream, this.opMap), false, xref);
     this.stateManager = stateManager;
     this.nonProcessedArgs = [];
-    this._numInvalidPathOPS = 0;
   }
   EvaluatorPreprocessor.prototype = {
     get savedStatesDepth() {
@@ -2773,7 +2780,7 @@ var EvaluatorPreprocessor = function EvaluatorPreprocessorClosure() {
           var cmd = obj.cmd;
           var opSpec = this.opMap[cmd];
           if (!opSpec) {
-            (0, _util.warn)('Unknown command "' + cmd + '".');
+            (0, _util.warn)('Unknown command "' + cmd + '"');
             continue;
           }
           var fn = opSpec.id;
@@ -2795,18 +2802,14 @@ var EvaluatorPreprocessor = function EvaluatorPreprocessorClosure() {
               }
             }
             if (argsLength < numArgs) {
-              var partialMsg = 'command ' + cmd + ': expected ' + numArgs + ' args, ' + ('but received ' + argsLength + ' args.');
-              if (fn >= _util.OPS.moveTo && fn <= _util.OPS.endPath && ++this._numInvalidPathOPS > MAX_INVALID_PATH_OPS) {
-                throw new _util.FormatError('Invalid ' + partialMsg);
-              }
-              (0, _util.warn)('Skipping ' + partialMsg);
+              (0, _util.warn)('Skipping command ' + fn + ': expected ' + numArgs + ' args, but received ' + argsLength + ' args.');
               if (args !== null) {
                 args.length = 0;
               }
               continue;
             }
           } else if (argsLength > numArgs) {
-            (0, _util.info)('Command ' + cmd + ': expected [0, ' + numArgs + '] args, ' + ('but received ' + argsLength + ' args.'));
+            (0, _util.info)('Command ' + fn + ': expected [0,' + numArgs + '] args, but received ' + argsLength + ' args.');
           }
           this.preprocessCommand(fn, args);
           operation.fn = fn;
@@ -2843,4 +2846,302 @@ var EvaluatorPreprocessor = function EvaluatorPreprocessorClosure() {
   };
   return EvaluatorPreprocessor;
 }();
+var QueueOptimizer = function QueueOptimizerClosure() {
+  function addState(parentState, pattern, fn) {
+    var state = parentState;
+    for (var i = 0, ii = pattern.length - 1; i < ii; i++) {
+      var item = pattern[i];
+      state = state[item] || (state[item] = []);
+    }
+    state[pattern[pattern.length - 1]] = fn;
+  }
+  function handlePaintSolidColorImageMask(iFirstSave, count, fnArray, argsArray) {
+    var iFirstPIMXO = iFirstSave + 2;
+    for (var i = 0; i < count; i++) {
+      var arg = argsArray[iFirstPIMXO + 4 * i];
+      var imageMask = arg.length === 1 && arg[0];
+      if (imageMask && imageMask.width === 1 && imageMask.height === 1 && (!imageMask.data.length || imageMask.data.length === 1 && imageMask.data[0] === 0)) {
+        fnArray[iFirstPIMXO + 4 * i] = _util.OPS.paintSolidColorImageMask;
+        continue;
+      }
+      break;
+    }
+    return count - i;
+  }
+  var InitialState = [];
+  addState(InitialState, [_util.OPS.save, _util.OPS.transform, _util.OPS.paintInlineImageXObject, _util.OPS.restore], function foundInlineImageGroup(context) {
+    var MIN_IMAGES_IN_INLINE_IMAGES_BLOCK = 10;
+    var MAX_IMAGES_IN_INLINE_IMAGES_BLOCK = 200;
+    var MAX_WIDTH = 1000;
+    var IMAGE_PADDING = 1;
+    var fnArray = context.fnArray,
+        argsArray = context.argsArray;
+    var curr = context.iCurr;
+    var iFirstSave = curr - 3;
+    var iFirstTransform = curr - 2;
+    var iFirstPIIXO = curr - 1;
+    var i = iFirstSave + 4;
+    var ii = fnArray.length;
+    while (i + 3 < ii) {
+      if (fnArray[i] !== _util.OPS.save || fnArray[i + 1] !== _util.OPS.transform || fnArray[i + 2] !== _util.OPS.paintInlineImageXObject || fnArray[i + 3] !== _util.OPS.restore) {
+        break;
+      }
+      i += 4;
+    }
+    var count = Math.min((i - iFirstSave) / 4, MAX_IMAGES_IN_INLINE_IMAGES_BLOCK);
+    if (count < MIN_IMAGES_IN_INLINE_IMAGES_BLOCK) {
+      return i;
+    }
+    var maxX = 0;
+    var map = [],
+        maxLineHeight = 0;
+    var currentX = IMAGE_PADDING,
+        currentY = IMAGE_PADDING;
+    var q;
+    for (q = 0; q < count; q++) {
+      var transform = argsArray[iFirstTransform + (q << 2)];
+      var img = argsArray[iFirstPIIXO + (q << 2)][0];
+      if (currentX + img.width > MAX_WIDTH) {
+        maxX = Math.max(maxX, currentX);
+        currentY += maxLineHeight + 2 * IMAGE_PADDING;
+        currentX = 0;
+        maxLineHeight = 0;
+      }
+      map.push({
+        transform: transform,
+        x: currentX,
+        y: currentY,
+        w: img.width,
+        h: img.height
+      });
+      currentX += img.width + 2 * IMAGE_PADDING;
+      maxLineHeight = Math.max(maxLineHeight, img.height);
+    }
+    var imgWidth = Math.max(maxX, currentX) + IMAGE_PADDING;
+    var imgHeight = currentY + maxLineHeight + IMAGE_PADDING;
+    var imgData = new Uint8Array(imgWidth * imgHeight * 4);
+    var imgRowSize = imgWidth << 2;
+    for (q = 0; q < count; q++) {
+      var data = argsArray[iFirstPIIXO + (q << 2)][0].data;
+      var rowSize = map[q].w << 2;
+      var dataOffset = 0;
+      var offset = map[q].x + map[q].y * imgWidth << 2;
+      imgData.set(data.subarray(0, rowSize), offset - imgRowSize);
+      for (var k = 0, kk = map[q].h; k < kk; k++) {
+        imgData.set(data.subarray(dataOffset, dataOffset + rowSize), offset);
+        dataOffset += rowSize;
+        offset += imgRowSize;
+      }
+      imgData.set(data.subarray(dataOffset - rowSize, dataOffset), offset);
+      while (offset >= 0) {
+        data[offset - 4] = data[offset];
+        data[offset - 3] = data[offset + 1];
+        data[offset - 2] = data[offset + 2];
+        data[offset - 1] = data[offset + 3];
+        data[offset + rowSize] = data[offset + rowSize - 4];
+        data[offset + rowSize + 1] = data[offset + rowSize - 3];
+        data[offset + rowSize + 2] = data[offset + rowSize - 2];
+        data[offset + rowSize + 3] = data[offset + rowSize - 1];
+        offset -= imgRowSize;
+      }
+    }
+    fnArray.splice(iFirstSave, count * 4, _util.OPS.paintInlineImageXObjectGroup);
+    argsArray.splice(iFirstSave, count * 4, [{
+      width: imgWidth,
+      height: imgHeight,
+      kind: _util.ImageKind.RGBA_32BPP,
+      data: imgData
+    }, map]);
+    return iFirstSave + 1;
+  });
+  addState(InitialState, [_util.OPS.save, _util.OPS.transform, _util.OPS.paintImageMaskXObject, _util.OPS.restore], function foundImageMaskGroup(context) {
+    var MIN_IMAGES_IN_MASKS_BLOCK = 10;
+    var MAX_IMAGES_IN_MASKS_BLOCK = 100;
+    var MAX_SAME_IMAGES_IN_MASKS_BLOCK = 1000;
+    var fnArray = context.fnArray,
+        argsArray = context.argsArray;
+    var curr = context.iCurr;
+    var iFirstSave = curr - 3;
+    var iFirstTransform = curr - 2;
+    var iFirstPIMXO = curr - 1;
+    var i = iFirstSave + 4;
+    var ii = fnArray.length;
+    while (i + 3 < ii) {
+      if (fnArray[i] !== _util.OPS.save || fnArray[i + 1] !== _util.OPS.transform || fnArray[i + 2] !== _util.OPS.paintImageMaskXObject || fnArray[i + 3] !== _util.OPS.restore) {
+        break;
+      }
+      i += 4;
+    }
+    var count = (i - iFirstSave) / 4;
+    count = handlePaintSolidColorImageMask(iFirstSave, count, fnArray, argsArray);
+    if (count < MIN_IMAGES_IN_MASKS_BLOCK) {
+      return i;
+    }
+    var q;
+    var isSameImage = false;
+    var iTransform, transformArgs;
+    var firstPIMXOArg0 = argsArray[iFirstPIMXO][0];
+    if (argsArray[iFirstTransform][1] === 0 && argsArray[iFirstTransform][2] === 0) {
+      isSameImage = true;
+      var firstTransformArg0 = argsArray[iFirstTransform][0];
+      var firstTransformArg3 = argsArray[iFirstTransform][3];
+      iTransform = iFirstTransform + 4;
+      var iPIMXO = iFirstPIMXO + 4;
+      for (q = 1; q < count; q++, iTransform += 4, iPIMXO += 4) {
+        transformArgs = argsArray[iTransform];
+        if (argsArray[iPIMXO][0] !== firstPIMXOArg0 || transformArgs[0] !== firstTransformArg0 || transformArgs[1] !== 0 || transformArgs[2] !== 0 || transformArgs[3] !== firstTransformArg3) {
+          if (q < MIN_IMAGES_IN_MASKS_BLOCK) {
+            isSameImage = false;
+          } else {
+            count = q;
+          }
+          break;
+        }
+      }
+    }
+    if (isSameImage) {
+      count = Math.min(count, MAX_SAME_IMAGES_IN_MASKS_BLOCK);
+      var positions = new Float32Array(count * 2);
+      iTransform = iFirstTransform;
+      for (q = 0; q < count; q++, iTransform += 4) {
+        transformArgs = argsArray[iTransform];
+        positions[q << 1] = transformArgs[4];
+        positions[(q << 1) + 1] = transformArgs[5];
+      }
+      fnArray.splice(iFirstSave, count * 4, _util.OPS.paintImageMaskXObjectRepeat);
+      argsArray.splice(iFirstSave, count * 4, [firstPIMXOArg0, firstTransformArg0, firstTransformArg3, positions]);
+    } else {
+      count = Math.min(count, MAX_IMAGES_IN_MASKS_BLOCK);
+      var images = [];
+      for (q = 0; q < count; q++) {
+        transformArgs = argsArray[iFirstTransform + (q << 2)];
+        var maskParams = argsArray[iFirstPIMXO + (q << 2)][0];
+        images.push({
+          data: maskParams.data,
+          width: maskParams.width,
+          height: maskParams.height,
+          transform: transformArgs
+        });
+      }
+      fnArray.splice(iFirstSave, count * 4, _util.OPS.paintImageMaskXObjectGroup);
+      argsArray.splice(iFirstSave, count * 4, [images]);
+    }
+    return iFirstSave + 1;
+  });
+  addState(InitialState, [_util.OPS.save, _util.OPS.transform, _util.OPS.paintImageXObject, _util.OPS.restore], function (context) {
+    var MIN_IMAGES_IN_BLOCK = 3;
+    var MAX_IMAGES_IN_BLOCK = 1000;
+    var fnArray = context.fnArray,
+        argsArray = context.argsArray;
+    var curr = context.iCurr;
+    var iFirstSave = curr - 3;
+    var iFirstTransform = curr - 2;
+    var iFirstPIXO = curr - 1;
+    var iFirstRestore = curr;
+    if (argsArray[iFirstTransform][1] !== 0 || argsArray[iFirstTransform][2] !== 0) {
+      return iFirstRestore + 1;
+    }
+    var firstPIXOArg0 = argsArray[iFirstPIXO][0];
+    var firstTransformArg0 = argsArray[iFirstTransform][0];
+    var firstTransformArg3 = argsArray[iFirstTransform][3];
+    var i = iFirstSave + 4;
+    var ii = fnArray.length;
+    while (i + 3 < ii) {
+      if (fnArray[i] !== _util.OPS.save || fnArray[i + 1] !== _util.OPS.transform || fnArray[i + 2] !== _util.OPS.paintImageXObject || fnArray[i + 3] !== _util.OPS.restore) {
+        break;
+      }
+      if (argsArray[i + 1][0] !== firstTransformArg0 || argsArray[i + 1][1] !== 0 || argsArray[i + 1][2] !== 0 || argsArray[i + 1][3] !== firstTransformArg3) {
+        break;
+      }
+      if (argsArray[i + 2][0] !== firstPIXOArg0) {
+        break;
+      }
+      i += 4;
+    }
+    var count = Math.min((i - iFirstSave) / 4, MAX_IMAGES_IN_BLOCK);
+    if (count < MIN_IMAGES_IN_BLOCK) {
+      return i;
+    }
+    var positions = new Float32Array(count * 2);
+    var iTransform = iFirstTransform;
+    for (var q = 0; q < count; q++, iTransform += 4) {
+      var transformArgs = argsArray[iTransform];
+      positions[q << 1] = transformArgs[4];
+      positions[(q << 1) + 1] = transformArgs[5];
+    }
+    var args = [firstPIXOArg0, firstTransformArg0, firstTransformArg3, positions];
+    fnArray.splice(iFirstSave, count * 4, _util.OPS.paintImageXObjectRepeat);
+    argsArray.splice(iFirstSave, count * 4, args);
+    return iFirstSave + 1;
+  });
+  addState(InitialState, [_util.OPS.beginText, _util.OPS.setFont, _util.OPS.setTextMatrix, _util.OPS.showText, _util.OPS.endText], function (context) {
+    var MIN_CHARS_IN_BLOCK = 3;
+    var MAX_CHARS_IN_BLOCK = 1000;
+    var fnArray = context.fnArray,
+        argsArray = context.argsArray;
+    var curr = context.iCurr;
+    var iFirstBeginText = curr - 4;
+    var iFirstSetFont = curr - 3;
+    var iFirstSetTextMatrix = curr - 2;
+    var iFirstShowText = curr - 1;
+    var iFirstEndText = curr;
+    var firstSetFontArg0 = argsArray[iFirstSetFont][0];
+    var firstSetFontArg1 = argsArray[iFirstSetFont][1];
+    var i = iFirstBeginText + 5;
+    var ii = fnArray.length;
+    while (i + 4 < ii) {
+      if (fnArray[i] !== _util.OPS.beginText || fnArray[i + 1] !== _util.OPS.setFont || fnArray[i + 2] !== _util.OPS.setTextMatrix || fnArray[i + 3] !== _util.OPS.showText || fnArray[i + 4] !== _util.OPS.endText) {
+        break;
+      }
+      if (argsArray[i + 1][0] !== firstSetFontArg0 || argsArray[i + 1][1] !== firstSetFontArg1) {
+        break;
+      }
+      i += 5;
+    }
+    var count = Math.min((i - iFirstBeginText) / 5, MAX_CHARS_IN_BLOCK);
+    if (count < MIN_CHARS_IN_BLOCK) {
+      return i;
+    }
+    var iFirst = iFirstBeginText;
+    if (iFirstBeginText >= 4 && fnArray[iFirstBeginText - 4] === fnArray[iFirstSetFont] && fnArray[iFirstBeginText - 3] === fnArray[iFirstSetTextMatrix] && fnArray[iFirstBeginText - 2] === fnArray[iFirstShowText] && fnArray[iFirstBeginText - 1] === fnArray[iFirstEndText] && argsArray[iFirstBeginText - 4][0] === firstSetFontArg0 && argsArray[iFirstBeginText - 4][1] === firstSetFontArg1) {
+      count++;
+      iFirst -= 5;
+    }
+    var iEndText = iFirst + 4;
+    for (var q = 1; q < count; q++) {
+      fnArray.splice(iEndText, 3);
+      argsArray.splice(iEndText, 3);
+      iEndText += 2;
+    }
+    return iEndText + 1;
+  });
+  function QueueOptimizer() {}
+  QueueOptimizer.prototype = {
+    optimize: function QueueOptimizer_optimize(queue) {
+      var fnArray = queue.fnArray,
+          argsArray = queue.argsArray;
+      var context = {
+        iCurr: 0,
+        fnArray: fnArray,
+        argsArray: argsArray
+      };
+      var state;
+      var i = 0,
+          ii = fnArray.length;
+      while (i < ii) {
+        state = (state || InitialState)[fnArray[i]];
+        if (typeof state === 'function') {
+          context.iCurr = i;
+          i = state(context);
+          state = undefined;
+          ii = context.fnArray.length;
+        } else {
+          i++;
+        }
+      }
+    }
+  };
+  return QueueOptimizer;
+}();
+exports.OperatorList = OperatorList;
 exports.PartialEvaluator = PartialEvaluator;

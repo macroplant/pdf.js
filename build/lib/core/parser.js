@@ -1,8 +1,4 @@
-/**
- * @licstart The following is the entire license notice for the
- * Javascript code in this page
- *
- * Copyright 2018 Mozilla Foundation
+/* Copyright 2017 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +11,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @licend The above is the entire license notice for the
- * Javascript code in this page
  */
 'use strict';
 
@@ -32,26 +25,7 @@ var _util = require('../shared/util');
 
 var _primitives = require('./primitives');
 
-var _ccitt_stream = require('./ccitt_stream');
-
-var _jbig2_stream = require('./jbig2_stream');
-
-var _jpeg_stream = require('./jpeg_stream');
-
-var _jpx_stream = require('./jpx_stream');
-
 var MAX_LENGTH_TO_CACHE = 1000;
-var MAX_ADLER32_LENGTH = 5552;
-function computeAdler32(bytes) {
-  var bytesLength = bytes.length;
-  var a = 1,
-      b = 0;
-  for (var i = 0; i < bytesLength; ++i) {
-    a += bytes[i] & 0xFF;
-    b += a;
-  }
-  return b % 65521 << 16 | a % 65521;
-}
 var Parser = function ParserClosure() {
   function Parser(lexer, allowStreams, xref, recoveryMode) {
     this.lexer = lexer;
@@ -341,8 +315,7 @@ var Parser = function ParserClosure() {
     makeInlineImage: function Parser_makeInlineImage(cipherTransform) {
       var lexer = this.lexer;
       var stream = lexer.stream;
-      var dict = new _primitives.Dict(this.xref),
-          dictLength = void 0;
+      var dict = new _primitives.Dict(this.xref);
       while (!(0, _primitives.isCmd)(this.buf1, 'ID') && !(0, _primitives.isEOF)(this.buf1)) {
         if (!(0, _primitives.isName)(this.buf1)) {
           throw new _util.FormatError('Dictionary key must be a name object');
@@ -353,9 +326,6 @@ var Parser = function ParserClosure() {
           break;
         }
         dict.set(key, this.getObj(cipherTransform));
-      }
-      if (lexer.beginInlineImagePos !== -1) {
-        dictLength = stream.pos - lexer.beginInlineImagePos;
       }
       var filter = dict.get('Filter', 'F'),
           filterName;
@@ -368,7 +338,9 @@ var Parser = function ParserClosure() {
         }
       }
       var startPos = stream.pos,
-          length = void 0;
+          length,
+          i,
+          ii;
       if (filterName === 'DCTDecode' || filterName === 'DCT') {
         length = this.findDCTDecodeInlineStreamEnd(stream);
       } else if (filterName === 'ASCII85Decode' || filterName === 'A85') {
@@ -379,16 +351,18 @@ var Parser = function ParserClosure() {
         length = this.findDefaultInlineStreamEnd(stream);
       }
       var imageStream = stream.makeSubStream(startPos, length, dict);
-      var cacheKey = void 0;
-      if (length < MAX_LENGTH_TO_CACHE && dictLength < MAX_ADLER32_LENGTH) {
+      var adler32;
+      if (length < MAX_LENGTH_TO_CACHE) {
         var imageBytes = imageStream.getBytes();
         imageStream.reset();
-        var initialStreamPos = stream.pos;
-        stream.pos = lexer.beginInlineImagePos;
-        var dictBytes = stream.getBytes(dictLength);
-        stream.pos = initialStreamPos;
-        cacheKey = computeAdler32(imageBytes) + '_' + computeAdler32(dictBytes);
-        var cacheEntry = this.imageCache[cacheKey];
+        var a = 1;
+        var b = 0;
+        for (i = 0, ii = imageBytes.length; i < ii; ++i) {
+          a += imageBytes[i] & 0xff;
+          b += a;
+        }
+        adler32 = b % 65521 << 16 | a % 65521;
+        var cacheEntry = this.imageCache[adler32];
         if (cacheEntry !== undefined) {
           this.buf2 = _primitives.Cmd.get('EI');
           this.shift();
@@ -401,87 +375,74 @@ var Parser = function ParserClosure() {
       }
       imageStream = this.filter(imageStream, dict, length);
       imageStream.dict = dict;
-      if (cacheKey !== undefined) {
-        imageStream.cacheKey = 'inline_' + length + '_' + cacheKey;
-        this.imageCache[cacheKey] = imageStream;
+      if (adler32 !== undefined) {
+        imageStream.cacheKey = 'inline_' + length + '_' + adler32;
+        this.imageCache[adler32] = imageStream;
       }
       this.buf2 = _primitives.Cmd.get('EI');
       this.shift();
       return imageStream;
     },
-    _findStreamLength: function _findStreamLength(startPos, signature) {
-      var stream = this.lexer.stream;
-
-      stream.pos = startPos;
-      var SCAN_BLOCK_LENGTH = 2048;
-      var signatureLength = signature.length;
-      while (stream.pos < stream.end) {
-        var scanBytes = stream.peekBytes(SCAN_BLOCK_LENGTH);
-        var scanLength = scanBytes.length - signatureLength;
-        if (scanLength <= 0) {
-          break;
-        }
-        var pos = 0;
-        while (pos < scanLength) {
-          var j = 0;
-          while (j < signatureLength && scanBytes[pos + j] === signature[j]) {
-            j++;
-          }
-          if (j >= signatureLength) {
-            stream.pos += pos;
-            return stream.pos - startPos;
-          }
-          pos++;
-        }
-        stream.pos += scanLength;
-      }
-      return -1;
-    },
-
     makeStream: function Parser_makeStream(dict, cipherTransform) {
       var lexer = this.lexer;
       var stream = lexer.stream;
       lexer.skipToNextLine();
-      var startPos = stream.pos - 1;
+      var pos = stream.pos - 1;
       var length = dict.get('Length');
       if (!Number.isInteger(length)) {
         (0, _util.info)('Bad ' + length + ' attribute in stream');
         length = 0;
       }
-      stream.pos = startPos + length;
+      stream.pos = pos + length;
       lexer.nextChar();
       if (this.tryShift() && (0, _primitives.isCmd)(this.buf2, 'endstream')) {
         this.shift();
       } else {
-        var ENDSTREAM_SIGNATURE = new Uint8Array([0x65, 0x6E, 0x64, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6D]);
-        var actualLength = this._findStreamLength(startPos, ENDSTREAM_SIGNATURE);
-        if (actualLength < 0) {
-          var MAX_TRUNCATION = 1;
-          for (var i = 1; i <= MAX_TRUNCATION; i++) {
-            var end = ENDSTREAM_SIGNATURE.length - i;
-            var TRUNCATED_SIGNATURE = ENDSTREAM_SIGNATURE.slice(0, end);
-            var maybeLength = this._findStreamLength(startPos, TRUNCATED_SIGNATURE);
-            if (maybeLength >= 0) {
-              var lastByte = stream.peekBytes(end + 1)[end];
-              if (!(0, _util.isSpace)(lastByte)) {
-                break;
-              }
-              (0, _util.info)('Found "' + (0, _util.bytesToString)(TRUNCATED_SIGNATURE) + '" when ' + 'searching for endstream command.');
-              actualLength = maybeLength;
+        stream.pos = pos;
+        var SCAN_BLOCK_SIZE = 2048;
+        var ENDSTREAM_SIGNATURE_LENGTH = 9;
+        var ENDSTREAM_SIGNATURE = [0x65, 0x6E, 0x64, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6D];
+        var skipped = 0,
+            found = false,
+            i,
+            j;
+        while (stream.pos < stream.end) {
+          var scanBytes = stream.peekBytes(SCAN_BLOCK_SIZE);
+          var scanLength = scanBytes.length - ENDSTREAM_SIGNATURE_LENGTH;
+          if (scanLength <= 0) {
+            break;
+          }
+          found = false;
+          i = 0;
+          while (i < scanLength) {
+            j = 0;
+            while (j < ENDSTREAM_SIGNATURE_LENGTH && scanBytes[i + j] === ENDSTREAM_SIGNATURE[j]) {
+              j++;
+            }
+            if (j >= ENDSTREAM_SIGNATURE_LENGTH) {
+              found = true;
               break;
             }
+            i++;
           }
-          if (actualLength < 0) {
-            throw new _util.FormatError('Missing endstream command.');
+          if (found) {
+            skipped += i;
+            stream.pos += i;
+            break;
           }
+          skipped += scanLength;
+          stream.pos += scanLength;
         }
-        length = actualLength;
+        if (!found) {
+          throw new _util.FormatError('Missing endstream');
+        }
+        length = skipped;
         lexer.nextChar();
         this.shift();
         this.shift();
       }
       this.shift();
-      stream = stream.makeSubStream(startPos, length, dict);
+      stream = stream.makeSubStream(pos, length, dict);
       if (cipherTransform) {
         stream = cipherTransform.createStream(stream, length);
       }
@@ -520,7 +481,7 @@ var Parser = function ParserClosure() {
     makeFilter: function Parser_makeFilter(stream, name, maybeLength, params) {
       if (maybeLength === 0) {
         (0, _util.warn)('Empty "' + name + '" stream.');
-        return new _stream.NullStream();
+        return new _stream.NullStream(stream);
       }
       try {
         var xrefStreamStats = this.xref.stats.streamTypes;
@@ -544,11 +505,11 @@ var Parser = function ParserClosure() {
         }
         if (name === 'DCTDecode' || name === 'DCT') {
           xrefStreamStats[_util.StreamType.DCT] = true;
-          return new _jpeg_stream.JpegStream(stream, maybeLength, stream.dict, params);
+          return new _stream.JpegStream(stream, maybeLength, stream.dict, params);
         }
         if (name === 'JPXDecode' || name === 'JPX') {
           xrefStreamStats[_util.StreamType.JPX] = true;
-          return new _jpx_stream.JpxStream(stream, maybeLength, stream.dict, params);
+          return new _stream.JpxStream(stream, maybeLength, stream.dict, params);
         }
         if (name === 'ASCII85Decode' || name === 'A85') {
           xrefStreamStats[_util.StreamType.A85] = true;
@@ -560,7 +521,7 @@ var Parser = function ParserClosure() {
         }
         if (name === 'CCITTFaxDecode' || name === 'CCF') {
           xrefStreamStats[_util.StreamType.CCF] = true;
-          return new _ccitt_stream.CCITTFaxStream(stream, maybeLength, params);
+          return new _stream.CCITTFaxStream(stream, maybeLength, params);
         }
         if (name === 'RunLengthDecode' || name === 'RL') {
           xrefStreamStats[_util.StreamType.RL] = true;
@@ -568,7 +529,7 @@ var Parser = function ParserClosure() {
         }
         if (name === 'JBIG2Decode') {
           xrefStreamStats[_util.StreamType.JBIG] = true;
-          return new _jbig2_stream.Jbig2Stream(stream, maybeLength, stream.dict, params);
+          return new _stream.Jbig2Stream(stream, maybeLength, stream.dict, params);
         }
         (0, _util.warn)('filter "' + name + '" not supported yet');
         return stream;
@@ -577,7 +538,7 @@ var Parser = function ParserClosure() {
           throw ex;
         }
         (0, _util.warn)('Invalid stream: \"' + ex + '\"');
-        return new _stream.NullStream();
+        return new _stream.NullStream(stream);
       }
     }
   };
@@ -589,7 +550,6 @@ var Lexer = function LexerClosure() {
     this.nextChar();
     this.strBuf = [];
     this.knownCommands = knownCommands;
-    this.beginInlineImagePos = -1;
   }
   var specialChars = [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 2, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   function toHexDigit(ch) {
@@ -612,7 +572,7 @@ var Lexer = function LexerClosure() {
       var ch = this.currentChar;
       var eNotation = false;
       var divideBy = 0;
-      var sign = 0;
+      var sign = 1;
       if (ch === 0x2D) {
         sign = -1;
         ch = this.nextChar();
@@ -620,7 +580,10 @@ var Lexer = function LexerClosure() {
           ch = this.nextChar();
         }
       } else if (ch === 0x2B) {
-        sign = 1;
+        ch = this.nextChar();
+      }
+      if (ch === 0x2E) {
+        divideBy = 10;
         ch = this.nextChar();
       }
       if (ch === 0x0A || ch === 0x0D) {
@@ -628,18 +591,9 @@ var Lexer = function LexerClosure() {
           ch = this.nextChar();
         } while (ch === 0x0A || ch === 0x0D);
       }
-      if (ch === 0x2E) {
-        divideBy = 10;
-        ch = this.nextChar();
-      }
       if (ch < 0x30 || ch > 0x39) {
-        if (divideBy === 10 && sign === 0 && ((0, _util.isSpace)(ch) || ch === -1)) {
-          (0, _util.warn)('Lexer.getNumber - treating a single decimal point as zero.');
-          return 0;
-        }
         throw new _util.FormatError('Invalid number: ' + String.fromCharCode(ch) + ' (charCode ' + ch + ')');
       }
-      sign = sign || 1;
       var baseValue = ch - 0x30;
       var powerValue = 0;
       var powerValueSign = 1;
@@ -949,9 +903,6 @@ var Lexer = function LexerClosure() {
       }
       if (str === 'null') {
         return null;
-      }
-      if (str === 'BI') {
-        this.beginInlineImagePos = this.stream.pos;
       }
       return _primitives.Cmd.get(str);
     },

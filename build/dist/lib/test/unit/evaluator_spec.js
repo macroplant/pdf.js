@@ -1,8 +1,4 @@
-/**
- * @licstart The following is the entire license notice for the
- * Javascript code in this page
- *
- * Copyright 2018 Mozilla Foundation
+/* Copyright 2017 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,21 +11,16 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @licend The above is the entire license notice for the
- * Javascript code in this page
  */
 'use strict';
 
 var _primitives = require('../../core/primitives');
 
-var _util = require('../../shared/util');
+var _evaluator = require('../../core/evaluator');
 
 var _stream = require('../../core/stream');
 
-var _operator_list = require('../../core/operator_list');
-
-var _evaluator = require('../../core/evaluator');
+var _util = require('../../shared/util');
 
 var _worker = require('../../core/worker');
 
@@ -55,7 +46,7 @@ describe('evaluator', function () {
   };
   function PdfManagerMock() {}
   function runOperatorListCheck(evaluator, stream, resources, callback) {
-    var result = new _operator_list.OperatorList();
+    var result = new _evaluator.OperatorList();
     var task = new _worker.WorkerTask('OperatorListCheck');
     evaluator.getOperatorList({
       stream: stream,
@@ -64,8 +55,6 @@ describe('evaluator', function () {
       operatorList: result
     }).then(function () {
       callback(result);
-    }, function (reason) {
-      callback(reason);
     });
   }
   var partialEvaluator;
@@ -92,7 +81,7 @@ describe('evaluator', function () {
         done();
       });
     });
-    it('should handle one operation', function (done) {
+    it('should handle one operations', function (done) {
       var stream = new _stream.StringStream('Q');
       runOperatorListCheck(partialEvaluator, stream, new ResourcesMock(), function (result) {
         expect(!!result.fnArray && !!result.argsArray).toEqual(true);
@@ -113,7 +102,7 @@ describe('evaluator', function () {
         done();
       });
     });
-    it('should handle three glued operations', function (done) {
+    it('should handle tree glued operations', function (done) {
       var stream = new _stream.StringStream('fff');
       runOperatorListCheck(partialEvaluator, stream, new ResourcesMock(), function (result) {
         expect(!!result.fnArray && !!result.argsArray).toEqual(true);
@@ -209,24 +198,6 @@ describe('evaluator', function () {
         done();
       });
     });
-    it('should error if (many) path operators have too few arguments ' + '(bug 1443140)', function (done) {
-      var NUM_INVALID_OPS = 25;
-      var tempArr = new Array(NUM_INVALID_OPS + 1);
-      var invalidMoveText = tempArr.join('10 Td\n');
-      var moveTextStream = new _stream.StringStream(invalidMoveText);
-      runOperatorListCheck(partialEvaluator, moveTextStream, new ResourcesMock(), function (result) {
-        expect(result.argsArray).toEqual([]);
-        expect(result.fnArray).toEqual([]);
-        done();
-      });
-      var invalidLineTo = tempArr.join('20 l\n');
-      var lineToStream = new _stream.StringStream(invalidLineTo);
-      runOperatorListCheck(partialEvaluator, lineToStream, new ResourcesMock(), function (error) {
-        expect(error instanceof _util.FormatError).toEqual(true);
-        expect(error.message).toEqual('Invalid command l: expected 2 args, but received 1 args.');
-        done();
-      });
-    });
     it('should close opened saves', function (done) {
       var stream = new _stream.StringStream('qq');
       runOperatorListCheck(partialEvaluator, stream, new ResourcesMock(), function (result) {
@@ -242,8 +213,8 @@ describe('evaluator', function () {
     it('should skip paintXObject if name is missing', function (done) {
       var stream = new _stream.StringStream('/ Do');
       runOperatorListCheck(partialEvaluator, stream, new ResourcesMock(), function (result) {
-        expect(result instanceof _util.FormatError).toEqual(true);
-        expect(result.message).toEqual('XObject must be referred to by name.');
+        expect(result.argsArray).toEqual([]);
+        expect(result.fnArray).toEqual([]);
         done();
       });
     });
@@ -267,7 +238,7 @@ describe('evaluator', function () {
     it('should abort operator list parsing', function (done) {
       var stream = new _stream.StringStream('qqQQ');
       var resources = new ResourcesMock();
-      var result = new _operator_list.OperatorList();
+      var result = new _evaluator.OperatorList();
       var task = new _worker.WorkerTask('OperatorListAbort');
       task.terminate();
       partialEvaluator.getOperatorList({
@@ -302,7 +273,7 @@ describe('evaluator', function () {
       send: function send() {}
     };
     it('should get correct total length after flushing', function () {
-      var operatorList = new _operator_list.OperatorList(null, new MessageHandlerMock());
+      var operatorList = new _evaluator.OperatorList(null, new MessageHandlerMock());
       operatorList.addOp(_util.OPS.save, null);
       operatorList.addOp(_util.OPS.restore, null);
       expect(operatorList.totalLength).toEqual(2);

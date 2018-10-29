@@ -1,8 +1,4 @@
-/**
- * @licstart The following is the entire license notice for the
- * Javascript code in this page
- *
- * Copyright 2018 Mozilla Foundation
+/* Copyright 2017 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +11,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @licend The above is the entire license notice for the
- * Javascript code in this page
  */
 'use strict';
 
@@ -28,11 +21,7 @@ exports.renderTextLayer = undefined;
 
 var _util = require('../shared/util');
 
-var _global_scope = require('../shared/global_scope');
-
-var _global_scope2 = _interopRequireDefault(_global_scope);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+var _dom_utils = require('./dom_utils');
 
 var renderTextLayer = function renderTextLayerClosure() {
   var MAX_TEXT_DIVS_TO_RENDER = 100000;
@@ -90,7 +79,7 @@ var renderTextLayer = function renderTextLayerClosure() {
     textDivProperties.style = styleBuf.join('');
     textDiv.setAttribute('style', textDivProperties.style);
     textDiv.textContent = geom.str;
-    if (task._fontInspectorEnabled) {
+    if ((0, _dom_utils.getDefaultSetting)('pdfBug')) {
       textDiv.dataset.fontName = geom.fontName;
     }
     if (angle !== 0) {
@@ -395,7 +384,6 @@ var renderTextLayer = function renderTextLayerClosure() {
     this._textDivs = textDivs || [];
     this._textContentItemsStr = textContentItemsStr || [];
     this._enhanceTextSelection = !!enhanceTextSelection;
-    this._fontInspectorEnabled = !!(_global_scope2.default.FontInspector && _global_scope2.default.FontInspector.enabled);
     this._reader = null;
     this._layoutTextLastFontSize = null;
     this._layoutTextLastFontFamily = null;
@@ -439,8 +427,8 @@ var renderTextLayer = function renderTextLayerClosure() {
       var fontFamily = textDiv.style.fontFamily;
       if (fontSize !== this._layoutTextLastFontSize || fontFamily !== this._layoutTextLastFontFamily) {
         this._layoutTextCtx.font = fontSize + ' ' + fontFamily;
-        this._layoutTextLastFontSize = fontSize;
-        this._layoutTextLastFontFamily = fontFamily;
+        this._lastFontSize = fontSize;
+        this._lastFontFamily = fontFamily;
       }
       var width = this._layoutTextCtx.measureText(textDiv.textContent).width;
       var transform = '';
@@ -453,7 +441,7 @@ var renderTextLayer = function renderTextLayerClosure() {
       }
       if (transform !== '') {
         textDivProperties.originalTransform = transform;
-        textDiv.style.transform = transform;
+        _dom_utils.CustomStyle.setProp('transform', textDiv, transform);
       }
       this._textDivProperties.set(textDiv, textDivProperties);
       textLayerFrag.appendChild(textDiv);
@@ -482,7 +470,7 @@ var renderTextLayer = function renderTextLayerClosure() {
               capability.resolve();
               return;
             }
-            Object.assign(styleCache, value.styles);
+            _util.Util.extendObj(styleCache, value.styles);
             _this._processItems(value.items, styleCache);
             pump();
           }, capability.reject);
@@ -545,11 +533,11 @@ var renderTextLayer = function renderTextLayerClosure() {
             div.setAttribute('style', divProperties.style + padding);
           }
           if (transform !== '') {
-            div.style.transform = transform;
+            _dom_utils.CustomStyle.setProp('transform', div, transform);
           }
         } else {
           div.style.padding = 0;
-          div.style.transform = divProperties.originalTransform || '';
+          _dom_utils.CustomStyle.setProp('transform', div, divProperties.originalTransform || '');
         }
       }
     }

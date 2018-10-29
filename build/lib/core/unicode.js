@@ -1,8 +1,4 @@
-/**
- * @licstart The following is the entire license notice for the
- * Javascript code in this page
- *
- * Copyright 2018 Mozilla Foundation
+/* Copyright 2017 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +11,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @licend The above is the entire license notice for the
- * Javascript code in this page
  */
 'use strict';
 
@@ -53,8 +46,6 @@ function mapSpecialUnicodeValues(code) {
     return 0;
   } else if (code >= 0xF600 && code <= 0xF8FF) {
     return getSpecialPUASymbols()[code] || code;
-  } else if (code === 0x00AD) {
-    return 0x002D;
   }
   return code;
 }
@@ -70,9 +61,9 @@ function getUnicodeForGlyph(name, glyphsUnicodeMap) {
     var nameLen = name.length,
         hexStr;
     if (nameLen === 7 && name[1] === 'n' && name[2] === 'i') {
-      hexStr = name.substring(3);
+      hexStr = name.substr(3);
     } else if (nameLen >= 5 && nameLen <= 7) {
-      hexStr = name.substring(1);
+      hexStr = name.substr(1);
     } else {
       return -1;
     }
