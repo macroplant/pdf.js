@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -27,6 +34,8 @@ var _ui_utils = require('./ui_utils');
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+var MATCHES_COUNT_LIMIT = 1000;
+
 var PDFFindBar = function () {
   function PDFFindBar(options) {
     var _this = this;
@@ -41,9 +50,9 @@ var PDFFindBar = function () {
     this.findField = options.findField || null;
     this.highlightAll = options.highlightAllCheckbox || null;
     this.caseSensitive = options.caseSensitiveCheckbox || null;
+    this.entireWord = options.entireWordCheckbox || null;
     this.findMsg = options.findMsg || null;
     this.findResultsCount = options.findResultsCount || null;
-    this.findStatusIcon = options.findStatusIcon || null;
     this.findPreviousButton = options.findPreviousButton || null;
     this.findNextButton = options.findNextButton || null;
     this.findController = options.findController || null;
@@ -82,6 +91,9 @@ var PDFFindBar = function () {
     this.caseSensitive.addEventListener('click', function () {
       _this.dispatchEvent('casesensitivitychange');
     });
+    this.entireWord.addEventListener('click', function () {
+      _this.dispatchEvent('entirewordchange');
+    });
     this.eventBus.on('resize', this._adjustWidth.bind(this));
   }
 
@@ -97,15 +109,16 @@ var PDFFindBar = function () {
         source: this,
         type: type,
         query: this.findField.value,
-        caseSensitive: this.caseSensitive.checked,
         phraseSearch: true,
+        caseSensitive: this.caseSensitive.checked,
+        entireWord: this.entireWord.checked,
         highlightAll: this.highlightAll.checked,
         findPrevious: findPrev
       });
     }
   }, {
     key: 'updateUIState',
-    value: function updateUIState(state, previous, matchCount) {
+    value: function updateUIState(state, previous, matchesCount) {
       var _this2 = this;
 
       var notFound = false;
@@ -139,22 +152,39 @@ var PDFFindBar = function () {
         _this2.findMsg.textContent = msg;
         _this2._adjustWidth();
       });
-      this.updateResultsCount(matchCount);
+      this.updateResultsCount(matchesCount);
     }
   }, {
     key: 'updateResultsCount',
-    value: function updateResultsCount(matchCount) {
+    value: function updateResultsCount() {
+      var _this3 = this;
+
+      var _ref = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+          _ref$current = _ref.current,
+          current = _ref$current === undefined ? 0 : _ref$current,
+          _ref$total = _ref.total,
+          total = _ref$total === undefined ? 0 : _ref$total;
+
       if (!this.findResultsCount) {
         return;
       }
-      if (!matchCount) {
-        this.findResultsCount.classList.add('hidden');
-        this.findResultsCount.textContent = '';
-      } else {
-        this.findResultsCount.textContent = matchCount.toLocaleString();
-        this.findResultsCount.classList.remove('hidden');
+      var matchesCountMsg = '',
+          limit = MATCHES_COUNT_LIMIT;
+      if (total > 0) {
+        if (total > limit) {
+          matchesCountMsg = this.l10n.get('find_match_count_limit', { limit: limit }, 'More than {{limit}} match' + (limit !== 1 ? 'es' : ''));
+        } else {
+          matchesCountMsg = this.l10n.get('find_match_count', {
+            current: current,
+            total: total
+          }, '{{current}} of {{total}} match' + (total !== 1 ? 'es' : ''));
+        }
       }
-      this._adjustWidth();
+      Promise.resolve(matchesCountMsg).then(function (msg) {
+        _this3.findResultsCount.textContent = msg;
+        _this3.findResultsCount.classList[!total ? 'add' : 'remove']('hidden');
+        _this3._adjustWidth();
+      });
     }
   }, {
     key: 'open',

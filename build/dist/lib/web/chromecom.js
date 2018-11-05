@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -19,9 +26,15 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.ChromeCom = undefined;
 
+var _regenerator = require('babel-runtime/regenerator');
+
+var _regenerator2 = _interopRequireDefault(_regenerator);
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _app = require('./app');
+
+var _app_options = require('./app_options');
 
 var _preferences = require('./preferences');
 
@@ -30,6 +43,10 @@ var _download_manager = require('./download_manager');
 var _genericl10n = require('./genericl10n');
 
 var _pdf = require('../pdf');
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -40,61 +57,49 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 {
   throw new Error('Module "pdfjs-web/chromecom" shall not be used outside ' + 'CHROME build.');
 }
-var ChromeCom = {};
-ChromeCom.request = function ChromeCom_request(action, data, callback) {
-  var message = {
-    action: action,
-    data: data
-  };
-  if (!chrome.runtime) {
-    console.error('chrome.runtime is undefined.');
-    if (callback) {
-      callback();
-    }
-  } else if (callback) {
-    chrome.runtime.sendMessage(message, callback);
-  } else {
-    chrome.runtime.sendMessage(message);
-  }
-};
-ChromeCom.resolvePDFFile = function (file, overlayManager, callback) {
-  file = file.replace(/^drive:/i, 'filesystem:' + location.origin + '/external/');
-  if (/^filesystem:/.test(file) && !_pdf.PDFJS.disableWorker) {
-    var resolveLocalFileSystemURL = window.resolveLocalFileSystemURL || window.webkitResolveLocalFileSystemURL;
-    resolveLocalFileSystemURL(file, function onResolvedFSURL(fileEntry) {
-      fileEntry.file(function (fileObject) {
-        var blobUrl = URL.createObjectURL(fileObject);
-        callback(blobUrl, fileObject.size);
-      });
-    }, function onFileSystemError(error) {
-      console.warn('Cannot resolve file ' + file + ', ' + error.name + ' ' + error.message);
-      callback(file);
-    });
-    return;
-  }
-  if (/^https?:/.test(file)) {
-    setReferer(file, function () {
-      callback(file);
-    });
-    return;
-  }
-  if (/^file?:/.test(file)) {
-    getEmbedderOrigin(function (origin) {
-      if (origin && !/^file:|^chrome-extension:/.test(origin)) {
-        _app.PDFViewerApplication.error('Blocked ' + origin + ' from loading ' + file + '. Refused to load a local file in a non-local page ' + 'for security reasons.');
-        return;
+var ChromeCom = {
+  request: function request(action, data, callback) {
+    var message = {
+      action: action,
+      data: data
+    };
+    if (!chrome.runtime) {
+      console.error('chrome.runtime is undefined.');
+      if (callback) {
+        callback();
       }
-      isAllowedFileSchemeAccess(function (isAllowedAccess) {
-        if (isAllowedAccess) {
-          callback(file);
-        } else {
-          requestAccessToLocalFile(file, overlayManager);
-        }
+    } else if (callback) {
+      chrome.runtime.sendMessage(message, callback);
+    } else {
+      chrome.runtime.sendMessage(message);
+    }
+  },
+  resolvePDFFile: function resolvePDFFile(file, overlayManager, callback) {
+    file = file.replace(/^drive:/i, 'filesystem:' + location.origin + '/external/');
+    if (/^https?:/.test(file)) {
+      setReferer(file, function () {
+        callback(file);
       });
-    });
-    return;
+      return;
+    }
+    if (/^file?:/.test(file)) {
+      getEmbedderOrigin(function (origin) {
+        if (origin && !/^file:|^chrome-extension:/.test(origin)) {
+          _app.PDFViewerApplication.error('Blocked ' + origin + ' from loading ' + file + '. Refused to load a local file in a non-local page ' + 'for security reasons.');
+          return;
+        }
+        isAllowedFileSchemeAccess(function (isAllowedAccess) {
+          if (isAllowedAccess) {
+            callback(file);
+          } else {
+            requestAccessToLocalFile(file, overlayManager, callback);
+          }
+        });
+      });
+      return;
+    }
+    callback(file);
   }
-  callback(file);
 };
 function getEmbedderOrigin(callback) {
   var origin = window === top ? location.origin : location.ancestorOrigins[0];
@@ -123,8 +128,8 @@ function reloadIfRuntimeIsUnavailable() {
     location.reload();
   }
 }
-var chromeFileAccessOverlayPromise;
-function requestAccessToLocalFile(fileUrl, overlayManager) {
+var chromeFileAccessOverlayPromise = void 0;
+function requestAccessToLocalFile(fileUrl, overlayManager, callback) {
   var onCloseOverlay = null;
   if (top !== window) {
     window.addEventListener('focus', reloadIfRuntimeIsUnavailable);
@@ -204,6 +209,23 @@ function requestAccessToLocalFile(fileUrl, overlayManager) {
       ChromeCom.request('openExtensionsPageForFileAccess', { newTab: e.ctrlKey || e.metaKey || e.button === 1 || window !== top });
     };
     document.getElementById('chrome-url-of-local-file').textContent = fileUrl;
+    document.getElementById('chrome-file-fallback').onchange = function () {
+      var file = this.files[0];
+      if (file) {
+        var originalFilename = decodeURIComponent(fileUrl.split('/').pop());
+        var originalUrl = fileUrl;
+        if (originalFilename !== file.name) {
+          var msg = 'The selected file does not match the original file.' + '\nOriginal: ' + originalFilename + '\nSelected: ' + file.name + '\nDo you want to open the selected file?';
+          if (!confirm(msg)) {
+            this.value = '';
+            return;
+          }
+          originalUrl = 'file:///fakepath/to/' + encodeURIComponent(file.name);
+        }
+        callback(_pdf.URL.createObjectURL(file), file.size, originalUrl);
+        overlayManager.close('chromeFileAccessOverlay');
+      }
+    };
     overlayManager.open('chromeFileAccessOverlay');
   });
 }
@@ -214,7 +236,7 @@ if (window === top) {
     }
   });
 }
-var port;
+var port = void 0;
 function setReferer(url, callback) {
   if (!port) {
     port = chrome.runtime.connect({ name: 'chromecom-referrer' });
@@ -256,49 +278,102 @@ var ChromePreferences = function (_BasePreferences) {
 
   _createClass(ChromePreferences, [{
     key: '_writeToStorage',
-    value: function _writeToStorage(prefObj) {
-      var _this2 = this;
+    value: function () {
+      var _ref = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee(prefObj) {
+        var _this2 = this;
 
-      return new Promise(function (resolve) {
-        if (prefObj === _this2.defaults) {
-          var keysToRemove = Object.keys(_this2.defaults);
-          storageArea.remove(keysToRemove, function () {
-            resolve();
-          });
-        } else {
-          storageArea.set(prefObj, function () {
-            resolve();
-          });
-        }
-      });
-    }
+        return _regenerator2.default.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                return _context.abrupt('return', new Promise(function (resolve) {
+                  if (prefObj === _this2.defaults) {
+                    var keysToRemove = Object.keys(_this2.defaults);
+                    storageArea.remove(keysToRemove, function () {
+                      resolve();
+                    });
+                  } else {
+                    storageArea.set(prefObj, function () {
+                      resolve();
+                    });
+                  }
+                }));
+
+              case 1:
+              case 'end':
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function _writeToStorage(_x) {
+        return _ref.apply(this, arguments);
+      }
+
+      return _writeToStorage;
+    }()
   }, {
     key: '_readFromStorage',
-    value: function _readFromStorage(prefObj) {
-      var _this3 = this;
+    value: function () {
+      var _ref2 = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee2(prefObj) {
+        var _this3 = this;
 
-      return new Promise(function (resolve) {
-        var getPreferences = function getPreferences(defaultPrefs) {
-          if (chrome.runtime.lastError) {
-            defaultPrefs = _this3.defaults;
-          }
-          storageArea.get(defaultPrefs, function (readPrefs) {
-            resolve(readPrefs);
-          });
-        };
-        if (chrome.storage.managed) {
-          chrome.storage.managed.get(_this3.defaults, function (items) {
-            if (items && items.enableHandToolOnLoad && !items.cursorToolOnLoad) {
-              items.enableHandToolOnLoad = false;
-              items.cursorToolOnLoad = 1;
+        return _regenerator2.default.wrap(function _callee2$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                return _context2.abrupt('return', new Promise(function (resolve) {
+                  var getPreferences = function getPreferences(defaultPrefs) {
+                    if (chrome.runtime.lastError) {
+                      defaultPrefs = _this3.defaults;
+                    }
+                    storageArea.get(defaultPrefs, function (readPrefs) {
+                      resolve(readPrefs);
+                    });
+                  };
+                  if (chrome.storage.managed) {
+                    var defaultManagedPrefs = Object.assign({
+                      enableHandToolOnLoad: false,
+                      disableTextLayer: false,
+                      enhanceTextSelection: false
+                    }, _this3.defaults);
+                    chrome.storage.managed.get(defaultManagedPrefs, function (items) {
+                      items = items || defaultManagedPrefs;
+                      if (items.enableHandToolOnLoad && !items.cursorToolOnLoad) {
+                        items.cursorToolOnLoad = 1;
+                      }
+                      delete items.enableHandToolOnLoad;
+                      if (items.textLayerMode !== 1) {
+                        if (items.disableTextLayer) {
+                          items.textLayerMode = 0;
+                        } else if (items.enhanceTextSelection) {
+                          items.textLayerMode = 2;
+                        }
+                      }
+                      delete items.disableTextLayer;
+                      delete items.enhanceTextSelection;
+                      getPreferences(items);
+                    });
+                  } else {
+                    getPreferences(_this3.defaults);
+                  }
+                }));
+
+              case 1:
+              case 'end':
+                return _context2.stop();
             }
-            getPreferences(items);
-          });
-        } else {
-          getPreferences(_this3.defaults);
-        }
-      });
-    }
+          }
+        }, _callee2, this);
+      }));
+
+      function _readFromStorage(_x2) {
+        return _ref2.apply(this, arguments);
+      }
+
+      return _readFromStorage;
+    }()
   }]);
 
   return ChromePreferences;
@@ -306,20 +381,19 @@ var ChromePreferences = function (_BasePreferences) {
 
 var ChromeExternalServices = Object.create(_app.DefaultExternalServices);
 ChromeExternalServices.initPassiveLoading = function (callbacks) {
-  var appConfig = _app.PDFViewerApplication.appConfig,
-      overlayManager = _app.PDFViewerApplication.overlayManager;
+  var overlayManager = _app.PDFViewerApplication.overlayManager;
 
-  ChromeCom.resolvePDFFile(appConfig.defaultUrl, overlayManager, function (url, length, originalURL) {
-    callbacks.onOpenWithURL(url, length, originalURL);
+  ChromeCom.resolvePDFFile(_app_options.AppOptions.get('defaultUrl'), overlayManager, function (url, length, originalUrl) {
+    callbacks.onOpenWithURL(url, length, originalUrl);
   });
 };
-ChromeExternalServices.createDownloadManager = function () {
-  return new _download_manager.DownloadManager();
+ChromeExternalServices.createDownloadManager = function (options) {
+  return new _download_manager.DownloadManager(options);
 };
 ChromeExternalServices.createPreferences = function () {
   return new ChromePreferences();
 };
-ChromeExternalServices.createL10n = function () {
+ChromeExternalServices.createL10n = function (options) {
   return new _genericl10n.GenericL10n(navigator.language);
 };
 _app.PDFViewerApplication.externalServices = ChromeExternalServices;

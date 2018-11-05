@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -19,9 +26,15 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.FileSpec = exports.XRef = exports.ObjectLoader = exports.Catalog = undefined;
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+var _regenerator = require('babel-runtime/regenerator');
+
+var _regenerator2 = _interopRequireDefault(_regenerator);
 
 var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _util = require('../shared/util');
 
@@ -35,65 +48,38 @@ var _crypto = require('./crypto');
 
 var _colorspace = require('./colorspace');
 
-var Catalog = function CatalogClosure() {
-  function Catalog(pdfManager, xref, pageFactory) {
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function fetchDestination(dest) {
+  return (0, _primitives.isDict)(dest) ? dest.get('D') : dest;
+}
+
+var Catalog = function () {
+  function Catalog(pdfManager, xref) {
+    _classCallCheck(this, Catalog);
+
     this.pdfManager = pdfManager;
     this.xref = xref;
     this.catDict = xref.getCatalogObj();
     if (!(0, _primitives.isDict)(this.catDict)) {
-      throw new _util.FormatError('catalog object is not a dictionary');
+      throw new _util.FormatError('Catalog object is not a dictionary.');
     }
     this.fontCache = new _primitives.RefSetCache();
-    this.builtInCMapCache = Object.create(null);
+    this.builtInCMapCache = new Map();
     this.pageKidsCountCache = new _primitives.RefSetCache();
-    this.pageFactory = pageFactory;
-    this.pagePromises = [];
   }
-  Catalog.prototype = {
-    get metadata() {
-      var streamRef = this.catDict.getRaw('Metadata');
-      if (!(0, _primitives.isRef)(streamRef)) {
-        return (0, _util.shadow)(this, 'metadata', null);
-      }
-      var encryptMetadata = !this.xref.encrypt ? false : this.xref.encrypt.encryptMetadata;
-      var stream = this.xref.fetch(streamRef, !encryptMetadata);
-      var metadata;
-      if (stream && (0, _primitives.isDict)(stream.dict)) {
-        var type = stream.dict.get('Type');
-        var subtype = stream.dict.get('Subtype');
-        if ((0, _primitives.isName)(type, 'Metadata') && (0, _primitives.isName)(subtype, 'XML')) {
-          try {
-            metadata = (0, _util.stringToUTF8String)((0, _util.bytesToString)(stream.getBytes()));
-          } catch (e) {
-            if (e instanceof _util.MissingDataException) {
-              throw e;
-            }
-            (0, _util.info)('Skipping invalid metadata.');
-          }
-        }
-      }
-      return (0, _util.shadow)(this, 'metadata', metadata);
-    },
-    get toplevelPagesDict() {
-      var pagesObj = this.catDict.get('Pages');
-      if (!(0, _primitives.isDict)(pagesObj)) {
-        throw new _util.FormatError('invalid top-level pages dictionary');
-      }
-      return (0, _util.shadow)(this, 'toplevelPagesDict', pagesObj);
-    },
-    get documentOutline() {
-      var obj = null;
-      try {
-        obj = this.readDocumentOutline();
-      } catch (ex) {
-        if (ex instanceof _util.MissingDataException) {
-          throw ex;
-        }
-        (0, _util.warn)('Unable to read document outline');
-      }
-      return (0, _util.shadow)(this, 'documentOutline', obj);
-    },
-    readDocumentOutline: function Catalog_readDocumentOutline() {
+
+  _createClass(Catalog, [{
+    key: '_readDocumentOutline',
+    value: function _readDocumentOutline() {
       var obj = this.catDict.get('Outlines');
       if (!(0, _primitives.isDict)(obj)) {
         return null;
@@ -110,7 +96,7 @@ var Catalog = function CatalogClosure() {
       var processed = new _primitives.RefSet();
       processed.put(obj);
       var xref = this.xref,
-          blackColor = new Uint8Array(3);
+          blackColor = new Uint8ClampedArray(3);
       while (queue.length > 0) {
         var i = queue.shift();
         var outlineDict = xref.fetchIfRef(i.obj);
@@ -118,7 +104,7 @@ var Catalog = function CatalogClosure() {
           continue;
         }
         if (!outlineDict.has('Title')) {
-          throw new _util.FormatError('Invalid outline item');
+          throw new _util.FormatError('Invalid outline item encountered.');
         }
         var data = {
           url: null,
@@ -131,8 +117,8 @@ var Catalog = function CatalogClosure() {
         });
         var title = outlineDict.get('Title');
         var flags = outlineDict.get('F') || 0;
-        var color = outlineDict.getArray('C'),
-            rgbColor = blackColor;
+        var color = outlineDict.getArray('C');
+        var rgbColor = blackColor;
         if (Array.isArray(color) && color.length === 3 && (color[0] !== 0 || color[1] !== 0 || color[2] !== 0)) {
           rgbColor = _colorspace.ColorSpace.singletons.rgb.getRgb(color, 0);
         }
@@ -167,92 +153,57 @@ var Catalog = function CatalogClosure() {
         }
       }
       return root.items.length > 0 ? root.items : null;
-    },
-    get numPages() {
-      var obj = this.toplevelPagesDict.get('Count');
-      if (!Number.isInteger(obj)) {
-        throw new _util.FormatError('page count in top level pages object is not an integer');
+    }
+  }, {
+    key: '_readPermissions',
+    value: function _readPermissions() {
+      var encrypt = this.xref.trailer.get('Encrypt');
+      if (!(0, _primitives.isDict)(encrypt)) {
+        return null;
       }
-      return (0, _util.shadow)(this, 'numPages', obj);
-    },
-    get destinations() {
-      function fetchDestination(dest) {
-        return (0, _primitives.isDict)(dest) ? dest.get('D') : dest;
+      var flags = encrypt.get('P');
+      if (!(0, _util.isNum)(flags)) {
+        return null;
       }
-      var xref = this.xref;
-      var dests = {},
-          nameTreeRef,
-          nameDictionaryRef;
+      flags += Math.pow(2, 32);
+      var permissions = [];
+      for (var key in _util.PermissionFlag) {
+        var value = _util.PermissionFlag[key];
+        if (flags & value) {
+          permissions.push(value);
+        }
+      }
+      return permissions;
+    }
+  }, {
+    key: 'getDestination',
+    value: function getDestination(destinationId) {
+      var obj = this._readDests();
+      if (obj instanceof NameTree || obj instanceof _primitives.Dict) {
+        return fetchDestination(obj.get(destinationId) || null);
+      }
+      return null;
+    }
+  }, {
+    key: '_readDests',
+    value: function _readDests() {
       var obj = this.catDict.get('Names');
       if (obj && obj.has('Dests')) {
-        nameTreeRef = obj.getRaw('Dests');
+        return new NameTree(obj.getRaw('Dests'), this.xref);
       } else if (this.catDict.has('Dests')) {
-        nameDictionaryRef = this.catDict.get('Dests');
+        return this.catDict.get('Dests');
       }
-      if (nameDictionaryRef) {
-        obj = nameDictionaryRef;
-        obj.forEach(function catalogForEach(key, value) {
-          if (!value) {
-            return;
-          }
-          dests[key] = fetchDestination(value);
-        });
-      }
-      if (nameTreeRef) {
-        var nameTree = new NameTree(nameTreeRef, xref);
-        var names = nameTree.getAll();
-        for (var name in names) {
-          dests[name] = fetchDestination(names[name]);
-        }
-      }
-      return (0, _util.shadow)(this, 'destinations', dests);
-    },
-    getDestination: function Catalog_getDestination(destinationId) {
-      function fetchDestination(dest) {
-        return (0, _primitives.isDict)(dest) ? dest.get('D') : dest;
-      }
-      var xref = this.xref;
-      var dest = null,
-          nameTreeRef,
-          nameDictionaryRef;
-      var obj = this.catDict.get('Names');
-      if (obj && obj.has('Dests')) {
-        nameTreeRef = obj.getRaw('Dests');
-      } else if (this.catDict.has('Dests')) {
-        nameDictionaryRef = this.catDict.get('Dests');
-      }
-      if (nameDictionaryRef) {
-        var value = nameDictionaryRef.get(destinationId);
-        if (value) {
-          dest = fetchDestination(value);
-        }
-      }
-      if (nameTreeRef) {
-        var nameTree = new NameTree(nameTreeRef, xref);
-        dest = fetchDestination(nameTree.get(destinationId));
-      }
-      return dest;
-    },
-    get pageLabels() {
-      var obj = null;
-      try {
-        obj = this.readPageLabels();
-      } catch (ex) {
-        if (ex instanceof _util.MissingDataException) {
-          throw ex;
-        }
-        (0, _util.warn)('Unable to read page labels.');
-      }
-      return (0, _util.shadow)(this, 'pageLabels', obj);
-    },
-    readPageLabels: function Catalog_readPageLabels() {
+    }
+  }, {
+    key: '_readPageLabels',
+    value: function _readPageLabels() {
       var obj = this.catDict.getRaw('PageLabels');
       if (!obj) {
         return null;
       }
       var pageLabels = new Array(this.numPages);
-      var style = null;
-      var prefix = '';
+      var style = null,
+          prefix = '';
       var numberTree = new NumberTree(obj, this.xref);
       var nums = numberTree.getAll();
       var currentLabel = '',
@@ -261,27 +212,38 @@ var Catalog = function CatalogClosure() {
         if (i in nums) {
           var labelDict = nums[i];
           if (!(0, _primitives.isDict)(labelDict)) {
-            throw new _util.FormatError('The PageLabel is not a dictionary.');
+            throw new _util.FormatError('PageLabel is not a dictionary.');
           }
-          var type = labelDict.get('Type');
-          if (type && !(0, _primitives.isName)(type, 'PageLabel')) {
+          if (labelDict.has('Type') && !(0, _primitives.isName)(labelDict.get('Type'), 'PageLabel')) {
             throw new _util.FormatError('Invalid type in PageLabel dictionary.');
           }
-          var s = labelDict.get('S');
-          if (s && !(0, _primitives.isName)(s)) {
-            throw new _util.FormatError('Invalid style in PageLabel dictionary.');
+          if (labelDict.has('S')) {
+            var s = labelDict.get('S');
+            if (!(0, _primitives.isName)(s)) {
+              throw new _util.FormatError('Invalid style in PageLabel dictionary.');
+            }
+            style = s.name;
+          } else {
+            style = null;
           }
-          style = s ? s.name : null;
-          var p = labelDict.get('P');
-          if (p && !(0, _util.isString)(p)) {
-            throw new _util.FormatError('Invalid prefix in PageLabel dictionary.');
+          if (labelDict.has('P')) {
+            var p = labelDict.get('P');
+            if (!(0, _util.isString)(p)) {
+              throw new _util.FormatError('Invalid prefix in PageLabel dictionary.');
+            }
+            prefix = (0, _util.stringToPDFString)(p);
+          } else {
+            prefix = '';
           }
-          prefix = p ? (0, _util.stringToPDFString)(p) : '';
-          var st = labelDict.get('St');
-          if (st && !(Number.isInteger(st) && st >= 1)) {
-            throw new _util.FormatError('Invalid start in PageLabel dictionary.');
+          if (labelDict.has('St')) {
+            var st = labelDict.get('St');
+            if (!(Number.isInteger(st) && st >= 1)) {
+              throw new _util.FormatError('Invalid start in PageLabel dictionary.');
+            }
+            currentIndex = st;
+          } else {
+            currentIndex = 1;
           }
-          currentIndex = st || 1;
         }
         switch (style) {
           case 'D':
@@ -289,7 +251,7 @@ var Catalog = function CatalogClosure() {
             break;
           case 'R':
           case 'r':
-            currentLabel = _util.Util.toRoman(currentIndex, style === 'r');
+            currentLabel = (0, _util.toRomanNumerals)(currentIndex, style === 'r');
             break;
           case 'A':
           case 'a':
@@ -309,92 +271,16 @@ var Catalog = function CatalogClosure() {
             if (style) {
               throw new _util.FormatError('Invalid style "' + style + '" in PageLabel dictionary.');
             }
+            currentLabel = '';
         }
         pageLabels[i] = prefix + currentLabel;
-        currentLabel = '';
         currentIndex++;
       }
       return pageLabels;
-    },
-    get pageMode() {
-      var obj = this.catDict.get('PageMode');
-      var pageMode = 'UseNone';
-      if ((0, _primitives.isName)(obj)) {
-        switch (obj.name) {
-          case 'UseNone':
-          case 'UseOutlines':
-          case 'UseThumbs':
-          case 'FullScreen':
-          case 'UseOC':
-          case 'UseAttachments':
-            pageMode = obj.name;
-        }
-      }
-      return (0, _util.shadow)(this, 'pageMode', pageMode);
-    },
-    get attachments() {
-      var xref = this.xref;
-      var attachments = null,
-          nameTreeRef;
-      var obj = this.catDict.get('Names');
-      if (obj) {
-        nameTreeRef = obj.getRaw('EmbeddedFiles');
-      }
-      if (nameTreeRef) {
-        var nameTree = new NameTree(nameTreeRef, xref);
-        var names = nameTree.getAll();
-        for (var name in names) {
-          var fs = new FileSpec(names[name], xref);
-          if (!attachments) {
-            attachments = Object.create(null);
-          }
-          attachments[(0, _util.stringToPDFString)(name)] = fs.serializable;
-        }
-      }
-      return (0, _util.shadow)(this, 'attachments', attachments);
-    },
-    get javaScript() {
-      var xref = this.xref;
-      var obj = this.catDict.get('Names');
-      var javaScript = [];
-      function appendIfJavaScriptDict(jsDict) {
-        var type = jsDict.get('S');
-        if (!(0, _primitives.isName)(type, 'JavaScript')) {
-          return;
-        }
-        var js = jsDict.get('JS');
-        if ((0, _primitives.isStream)(js)) {
-          js = (0, _util.bytesToString)(js.getBytes());
-        } else if (!(0, _util.isString)(js)) {
-          return;
-        }
-        javaScript.push((0, _util.stringToPDFString)(js));
-      }
-      if (obj && obj.has('JavaScript')) {
-        var nameTree = new NameTree(obj.getRaw('JavaScript'), xref);
-        var names = nameTree.getAll();
-        for (var name in names) {
-          var jsDict = names[name];
-          if ((0, _primitives.isDict)(jsDict)) {
-            appendIfJavaScriptDict(jsDict);
-          }
-        }
-      }
-      var openactionDict = this.catDict.get('OpenAction');
-      if ((0, _primitives.isDict)(openactionDict, 'Action')) {
-        var actionType = openactionDict.get('S');
-        if ((0, _primitives.isName)(actionType, 'Named')) {
-          var action = openactionDict.get('N');
-          if ((0, _primitives.isName)(action, 'Print')) {
-            javaScript.push('print({});');
-          }
-        } else {
-          appendIfJavaScriptDict(openactionDict);
-        }
-      }
-      return (0, _util.shadow)(this, 'javaScript', javaScript);
-    },
-    cleanup: function Catalog_cleanup() {
+    }
+  }, {
+    key: 'cleanup',
+    value: function cleanup() {
       var _this = this;
 
       this.pageKidsCountCache.clear();
@@ -408,38 +294,26 @@ var Catalog = function CatalogClosure() {
           delete font.translated;
         }
         _this.fontCache.clear();
-        _this.builtInCMapCache = Object.create(null);
+        _this.builtInCMapCache.clear();
       });
-    },
-    getPage: function Catalog_getPage(pageIndex) {
-      var _this2 = this;
-
-      if (!(pageIndex in this.pagePromises)) {
-        this.pagePromises[pageIndex] = this.getPageDict(pageIndex).then(function (_ref) {
-          var _ref2 = _slicedToArray(_ref, 2),
-              dict = _ref2[0],
-              ref = _ref2[1];
-
-          return _this2.pageFactory.createPage(pageIndex, dict, ref, _this2.fontCache, _this2.builtInCMapCache);
-        });
-      }
-      return this.pagePromises[pageIndex];
-    },
-    getPageDict: function Catalog_getPageDict(pageIndex) {
+    }
+  }, {
+    key: 'getPageDict',
+    value: function getPageDict(pageIndex) {
       var capability = (0, _util.createPromiseCapability)();
       var nodesToVisit = [this.catDict.getRaw('Pages')];
-      var count,
-          currentPageIndex = 0;
       var xref = this.xref,
           pageKidsCountCache = this.pageKidsCountCache;
+      var count = void 0,
+          currentPageIndex = 0;
       function next() {
-        while (nodesToVisit.length) {
+        var _loop = function _loop() {
           var currentNode = nodesToVisit.pop();
           if ((0, _primitives.isRef)(currentNode)) {
             count = pageKidsCountCache.get(currentNode);
             if (count > 0 && currentPageIndex + count < pageIndex) {
               currentPageIndex += count;
-              continue;
+              return 'continue';
             }
             xref.fetchAsync(currentNode).then(function (obj) {
               if ((0, _primitives.isDict)(obj, 'Page') || (0, _primitives.isDict)(obj) && !obj.has('Kids')) {
@@ -457,49 +331,81 @@ var Catalog = function CatalogClosure() {
               nodesToVisit.push(obj);
               next();
             }, capability.reject);
-            return;
+            return {
+              v: void 0
+            };
           }
           if (!(0, _primitives.isDict)(currentNode)) {
-            capability.reject(new _util.FormatError('page dictionary kid reference points to wrong type of object'));
-            return;
+            capability.reject(new _util.FormatError('Page dictionary kid reference points to wrong type of object.'));
+            return {
+              v: void 0
+            };
           }
           count = currentNode.get('Count');
-          var objId = currentNode.objId;
-          if (objId && !pageKidsCountCache.has(objId)) {
-            pageKidsCountCache.put(objId, count);
-          }
-          if (currentPageIndex + count <= pageIndex) {
-            currentPageIndex += count;
-            continue;
+          if (Number.isInteger(count) && count >= 0) {
+            var objId = currentNode.objId;
+            if (objId && !pageKidsCountCache.has(objId)) {
+              pageKidsCountCache.put(objId, count);
+            }
+            if (currentPageIndex + count <= pageIndex) {
+              currentPageIndex += count;
+              return 'continue';
+            }
           }
           var kids = currentNode.get('Kids');
           if (!Array.isArray(kids)) {
-            capability.reject(new _util.FormatError('page dictionary kids object is not an array'));
-            return;
+            if ((0, _primitives.isName)(currentNode.get('Type'), 'Page') || !currentNode.has('Type') && currentNode.has('Contents')) {
+              if (currentPageIndex === pageIndex) {
+                capability.resolve([currentNode, null]);
+                return {
+                  v: void 0
+                };
+              }
+              currentPageIndex++;
+              return 'continue';
+            }
+            capability.reject(new _util.FormatError('Page dictionary kids object is not an array.'));
+            return {
+              v: void 0
+            };
           }
           for (var last = kids.length - 1; last >= 0; last--) {
             nodesToVisit.push(kids[last]);
+          }
+        };
+
+        while (nodesToVisit.length) {
+          var _ret = _loop();
+
+          switch (_ret) {
+            case 'continue':
+              continue;
+
+            default:
+              if ((typeof _ret === 'undefined' ? 'undefined' : _typeof(_ret)) === "object") return _ret.v;
           }
         }
         capability.reject(new Error('Page index ' + pageIndex + ' not found.'));
       }
       next();
       return capability.promise;
-    },
-    getPageIndex: function Catalog_getPageIndex(pageRef) {
+    }
+  }, {
+    key: 'getPageIndex',
+    value: function getPageIndex(pageRef) {
       var xref = this.xref;
       function pagesBeforeRef(kidRef) {
-        var total = 0;
-        var parentRef;
+        var total = 0,
+            parentRef = void 0;
         return xref.fetchAsync(kidRef).then(function (node) {
           if ((0, _primitives.isRefsEqual)(kidRef, pageRef) && !(0, _primitives.isDict)(node, 'Page') && !((0, _primitives.isDict)(node) && !node.has('Type') && node.has('Contents'))) {
-            throw new _util.FormatError('The reference does not point to a /Page Dict.');
+            throw new _util.FormatError('The reference does not point to a /Page dictionary.');
           }
           if (!node) {
             return null;
           }
           if (!(0, _primitives.isDict)(node)) {
-            throw new _util.FormatError('node must be a Dict.');
+            throw new _util.FormatError('Node must be a dictionary.');
           }
           parentRef = node.getRaw('Parent');
           return node.getAsync('Parent');
@@ -508,7 +414,7 @@ var Catalog = function CatalogClosure() {
             return null;
           }
           if (!(0, _primitives.isDict)(parent)) {
-            throw new _util.FormatError('parent must be a Dict.');
+            throw new _util.FormatError('Parent must be a dictionary.');
           }
           return parent.getAsync('Kids');
         }).then(function (kids) {
@@ -517,26 +423,28 @@ var Catalog = function CatalogClosure() {
           }
           var kidPromises = [];
           var found = false;
-          for (var i = 0; i < kids.length; i++) {
+          for (var i = 0, ii = kids.length; i < ii; i++) {
             var kid = kids[i];
             if (!(0, _primitives.isRef)(kid)) {
-              throw new _util.FormatError('kid must be a Ref.');
+              throw new _util.FormatError('Kid must be a reference.');
             }
-            if (kid.num === kidRef.num) {
+            if ((0, _primitives.isRefsEqual)(kid, kidRef)) {
               found = true;
               break;
             }
             kidPromises.push(xref.fetchAsync(kid).then(function (kid) {
+              if (!(0, _primitives.isDict)(kid)) {
+                throw new _util.FormatError('Kid node must be a dictionary.');
+              }
               if (kid.has('Count')) {
-                var count = kid.get('Count');
-                total += count;
+                total += kid.get('Count');
               } else {
                 total++;
               }
             }));
           }
           if (!found) {
-            throw new _util.FormatError('kid ref not found in parents kids');
+            throw new _util.FormatError('Kid reference not found in parent\'s kids.');
           }
           return Promise.all(kidPromises).then(function () {
             return [total, parentRef];
@@ -549,144 +457,340 @@ var Catalog = function CatalogClosure() {
           if (!args) {
             return total;
           }
-          var count = args[0];
-          var parentRef = args[1];
+
+          var _args = _slicedToArray(args, 2),
+              count = _args[0],
+              parentRef = _args[1];
+
           total += count;
           return next(parentRef);
         });
       }
       return next(pageRef);
     }
-  };
-  Catalog.parseDestDictionary = function Catalog_parseDestDictionary(params) {
-    function addDefaultProtocolToUrl(url) {
-      if (url.indexOf('www.') === 0) {
-        return 'http://' + url;
+  }, {
+    key: 'metadata',
+    get: function get() {
+      var streamRef = this.catDict.getRaw('Metadata');
+      if (!(0, _primitives.isRef)(streamRef)) {
+        return (0, _util.shadow)(this, 'metadata', null);
       }
-      return url;
+      var suppressEncryption = !(this.xref.encrypt && this.xref.encrypt.encryptMetadata);
+      var stream = this.xref.fetch(streamRef, suppressEncryption);
+      var metadata = void 0;
+      if (stream && (0, _primitives.isDict)(stream.dict)) {
+        var type = stream.dict.get('Type');
+        var subtype = stream.dict.get('Subtype');
+        if ((0, _primitives.isName)(type, 'Metadata') && (0, _primitives.isName)(subtype, 'XML')) {
+          try {
+            metadata = (0, _util.stringToUTF8String)((0, _util.bytesToString)(stream.getBytes()));
+          } catch (e) {
+            if (e instanceof _util.MissingDataException) {
+              throw e;
+            }
+            (0, _util.info)('Skipping invalid metadata.');
+          }
+        }
+      }
+      return (0, _util.shadow)(this, 'metadata', metadata);
     }
-    function tryConvertUrlEncoding(url) {
+  }, {
+    key: 'toplevelPagesDict',
+    get: function get() {
+      var pagesObj = this.catDict.get('Pages');
+      if (!(0, _primitives.isDict)(pagesObj)) {
+        throw new _util.FormatError('Invalid top-level pages dictionary.');
+      }
+      return (0, _util.shadow)(this, 'toplevelPagesDict', pagesObj);
+    }
+  }, {
+    key: 'documentOutline',
+    get: function get() {
+      var obj = null;
       try {
-        return (0, _util.stringToUTF8String)(url);
-      } catch (e) {
+        obj = this._readDocumentOutline();
+      } catch (ex) {
+        if (ex instanceof _util.MissingDataException) {
+          throw ex;
+        }
+        (0, _util.warn)('Unable to read document outline.');
+      }
+      return (0, _util.shadow)(this, 'documentOutline', obj);
+    }
+  }, {
+    key: 'permissions',
+    get: function get() {
+      var permissions = null;
+      try {
+        permissions = this._readPermissions();
+      } catch (ex) {
+        if (ex instanceof _util.MissingDataException) {
+          throw ex;
+        }
+        (0, _util.warn)('Unable to read permissions.');
+      }
+      return (0, _util.shadow)(this, 'permissions', permissions);
+    }
+  }, {
+    key: 'numPages',
+    get: function get() {
+      var obj = this.toplevelPagesDict.get('Count');
+      if (!Number.isInteger(obj)) {
+        throw new _util.FormatError('Page count in top-level pages dictionary is not an integer.');
+      }
+      return (0, _util.shadow)(this, 'numPages', obj);
+    }
+  }, {
+    key: 'destinations',
+    get: function get() {
+      var obj = this._readDests(),
+          dests = Object.create(null);
+      if (obj instanceof NameTree) {
+        var names = obj.getAll();
+        for (var name in names) {
+          dests[name] = fetchDestination(names[name]);
+        }
+      } else if (obj instanceof _primitives.Dict) {
+        obj.forEach(function (key, value) {
+          if (value) {
+            dests[key] = fetchDestination(value);
+          }
+        });
+      }
+      return (0, _util.shadow)(this, 'destinations', dests);
+    }
+  }, {
+    key: 'pageLabels',
+    get: function get() {
+      var obj = null;
+      try {
+        obj = this._readPageLabels();
+      } catch (ex) {
+        if (ex instanceof _util.MissingDataException) {
+          throw ex;
+        }
+        (0, _util.warn)('Unable to read page labels.');
+      }
+      return (0, _util.shadow)(this, 'pageLabels', obj);
+    }
+  }, {
+    key: 'pageMode',
+    get: function get() {
+      var obj = this.catDict.get('PageMode');
+      var pageMode = 'UseNone';
+      if ((0, _primitives.isName)(obj)) {
+        switch (obj.name) {
+          case 'UseNone':
+          case 'UseOutlines':
+          case 'UseThumbs':
+          case 'FullScreen':
+          case 'UseOC':
+          case 'UseAttachments':
+            pageMode = obj.name;
+        }
+      }
+      return (0, _util.shadow)(this, 'pageMode', pageMode);
+    }
+  }, {
+    key: 'attachments',
+    get: function get() {
+      var obj = this.catDict.get('Names');
+      var attachments = null;
+      if (obj && obj.has('EmbeddedFiles')) {
+        var nameTree = new NameTree(obj.getRaw('EmbeddedFiles'), this.xref);
+        var names = nameTree.getAll();
+        for (var name in names) {
+          var fs = new FileSpec(names[name], this.xref);
+          if (!attachments) {
+            attachments = Object.create(null);
+          }
+          attachments[(0, _util.stringToPDFString)(name)] = fs.serializable;
+        }
+      }
+      return (0, _util.shadow)(this, 'attachments', attachments);
+    }
+  }, {
+    key: 'javaScript',
+    get: function get() {
+      var obj = this.catDict.get('Names');
+      var javaScript = null;
+      function appendIfJavaScriptDict(jsDict) {
+        var type = jsDict.get('S');
+        if (!(0, _primitives.isName)(type, 'JavaScript')) {
+          return;
+        }
+        var js = jsDict.get('JS');
+        if ((0, _primitives.isStream)(js)) {
+          js = (0, _util.bytesToString)(js.getBytes());
+        } else if (!(0, _util.isString)(js)) {
+          return;
+        }
+        if (!javaScript) {
+          javaScript = [];
+        }
+        javaScript.push((0, _util.stringToPDFString)(js));
+      }
+      if (obj && obj.has('JavaScript')) {
+        var nameTree = new NameTree(obj.getRaw('JavaScript'), this.xref);
+        var names = nameTree.getAll();
+        for (var name in names) {
+          var jsDict = names[name];
+          if ((0, _primitives.isDict)(jsDict)) {
+            appendIfJavaScriptDict(jsDict);
+          }
+        }
+      }
+      var openActionDict = this.catDict.get('OpenAction');
+      if ((0, _primitives.isDict)(openActionDict, 'Action')) {
+        var actionType = openActionDict.get('S');
+        if ((0, _primitives.isName)(actionType, 'Named')) {
+          var action = openActionDict.get('N');
+          if ((0, _primitives.isName)(action, 'Print')) {
+            if (!javaScript) {
+              javaScript = [];
+            }
+            javaScript.push('print({});');
+          }
+        } else {
+          appendIfJavaScriptDict(openActionDict);
+        }
+      }
+      return (0, _util.shadow)(this, 'javaScript', javaScript);
+    }
+  }], [{
+    key: 'parseDestDictionary',
+    value: function parseDestDictionary(params) {
+      function addDefaultProtocolToUrl(url) {
+        if (url.indexOf('www.') === 0) {
+          return 'http://' + url;
+        }
         return url;
       }
-    }
-    var destDict = params.destDict;
-    if (!(0, _primitives.isDict)(destDict)) {
-      (0, _util.warn)('parseDestDictionary: "destDict" must be a dictionary.');
-      return;
-    }
-    var resultObj = params.resultObj;
-    if ((typeof resultObj === 'undefined' ? 'undefined' : _typeof(resultObj)) !== 'object') {
-      (0, _util.warn)('parseDestDictionary: "resultObj" must be an object.');
-      return;
-    }
-    var docBaseUrl = params.docBaseUrl || null;
-    var action = destDict.get('A'),
-        url,
-        dest;
-    if (!(0, _primitives.isDict)(action) && destDict.has('Dest')) {
-      action = destDict.get('Dest');
-    }
-    if ((0, _primitives.isDict)(action)) {
-      var actionType = action.get('S');
-      if (!(0, _primitives.isName)(actionType)) {
-        (0, _util.warn)('parseDestDictionary: Invalid type in Action dictionary.');
+      function tryConvertUrlEncoding(url) {
+        try {
+          return (0, _util.stringToUTF8String)(url);
+        } catch (e) {
+          return url;
+        }
+      }
+      var destDict = params.destDict;
+      if (!(0, _primitives.isDict)(destDict)) {
+        (0, _util.warn)('parseDestDictionary: `destDict` must be a dictionary.');
         return;
       }
-      var actionName = actionType.name;
-      switch (actionName) {
-        case 'URI':
-          url = action.get('URI');
-          if ((0, _primitives.isName)(url)) {
-            url = '/' + url.name;
-          } else if ((0, _util.isString)(url)) {
-            url = addDefaultProtocolToUrl(url);
-          }
-          break;
-        case 'GoTo':
-          dest = action.get('D');
-          break;
-        case 'Launch':
-        case 'GoToR':
-          var urlDict = action.get('F');
-          if ((0, _primitives.isDict)(urlDict)) {
-            url = urlDict.get('F') || null;
-          } else if ((0, _util.isString)(urlDict)) {
-            url = urlDict;
-          }
-          var remoteDest = action.get('D');
-          if (remoteDest) {
-            if ((0, _primitives.isName)(remoteDest)) {
-              remoteDest = remoteDest.name;
+      var resultObj = params.resultObj;
+      if ((typeof resultObj === 'undefined' ? 'undefined' : _typeof(resultObj)) !== 'object') {
+        (0, _util.warn)('parseDestDictionary: `resultObj` must be an object.');
+        return;
+      }
+      var docBaseUrl = params.docBaseUrl || null;
+      var action = destDict.get('A'),
+          url = void 0,
+          dest = void 0;
+      if (!(0, _primitives.isDict)(action) && destDict.has('Dest')) {
+        action = destDict.get('Dest');
+      }
+      if ((0, _primitives.isDict)(action)) {
+        var actionType = action.get('S');
+        if (!(0, _primitives.isName)(actionType)) {
+          (0, _util.warn)('parseDestDictionary: Invalid type in Action dictionary.');
+          return;
+        }
+        var actionName = actionType.name;
+        switch (actionName) {
+          case 'URI':
+            url = action.get('URI');
+            if ((0, _primitives.isName)(url)) {
+              url = '/' + url.name;
+            } else if ((0, _util.isString)(url)) {
+              url = addDefaultProtocolToUrl(url);
             }
-            if ((0, _util.isString)(url)) {
-              var baseUrl = url.split('#')[0];
-              if ((0, _util.isString)(remoteDest)) {
-                url = baseUrl + '#' + remoteDest;
-              } else if (Array.isArray(remoteDest)) {
-                url = baseUrl + '#' + JSON.stringify(remoteDest);
+            break;
+          case 'GoTo':
+            dest = action.get('D');
+            break;
+          case 'Launch':
+          case 'GoToR':
+            var urlDict = action.get('F');
+            if ((0, _primitives.isDict)(urlDict)) {
+              url = urlDict.get('F') || null;
+            } else if ((0, _util.isString)(urlDict)) {
+              url = urlDict;
+            }
+            var remoteDest = action.get('D');
+            if (remoteDest) {
+              if ((0, _primitives.isName)(remoteDest)) {
+                remoteDest = remoteDest.name;
+              }
+              if ((0, _util.isString)(url)) {
+                var baseUrl = url.split('#')[0];
+                if ((0, _util.isString)(remoteDest)) {
+                  url = baseUrl + '#' + remoteDest;
+                } else if (Array.isArray(remoteDest)) {
+                  url = baseUrl + '#' + JSON.stringify(remoteDest);
+                }
               }
             }
-          }
-          var newWindow = action.get('NewWindow');
-          if ((0, _util.isBool)(newWindow)) {
-            resultObj.newWindow = newWindow;
-          }
-          break;
-        case 'Named':
-          var namedAction = action.get('N');
-          if ((0, _primitives.isName)(namedAction)) {
-            resultObj.action = namedAction.name;
-          }
-          break;
-        case 'JavaScript':
-          var jsAction = action.get('JS'),
-              js;
-          if ((0, _primitives.isStream)(jsAction)) {
-            js = (0, _util.bytesToString)(jsAction.getBytes());
-          } else if ((0, _util.isString)(jsAction)) {
-            js = jsAction;
-          }
-          if (js) {
-            var URL_OPEN_METHODS = ['app.launchURL', 'window.open'];
-            var regex = new RegExp('^\\s*(' + URL_OPEN_METHODS.join('|').split('.').join('\\.') + ')\\((?:\'|\")([^\'\"]*)(?:\'|\")(?:,\\s*(\\w+)\\)|\\))', 'i');
-            var jsUrl = regex.exec((0, _util.stringToPDFString)(js));
-            if (jsUrl && jsUrl[2]) {
-              url = jsUrl[2];
-              if (jsUrl[3] === 'true' && jsUrl[1] === 'app.launchURL') {
-                resultObj.newWindow = true;
-              }
-              break;
+            var newWindow = action.get('NewWindow');
+            if ((0, _util.isBool)(newWindow)) {
+              resultObj.newWindow = newWindow;
             }
-          }
-        default:
-          (0, _util.warn)('parseDestDictionary: Unsupported Action type "' + actionName + '".');
-          break;
+            break;
+          case 'Named':
+            var namedAction = action.get('N');
+            if ((0, _primitives.isName)(namedAction)) {
+              resultObj.action = namedAction.name;
+            }
+            break;
+          case 'JavaScript':
+            var jsAction = action.get('JS');
+            var js = void 0;
+            if ((0, _primitives.isStream)(jsAction)) {
+              js = (0, _util.bytesToString)(jsAction.getBytes());
+            } else if ((0, _util.isString)(jsAction)) {
+              js = jsAction;
+            }
+            if (js) {
+              var URL_OPEN_METHODS = ['app.launchURL', 'window.open'];
+              var regex = new RegExp('^\\s*(' + URL_OPEN_METHODS.join('|').split('.').join('\\.') + ')\\((?:\'|\")([^\'\"]*)(?:\'|\")(?:,\\s*(\\w+)\\)|\\))', 'i');
+              var jsUrl = regex.exec((0, _util.stringToPDFString)(js));
+              if (jsUrl && jsUrl[2]) {
+                url = jsUrl[2];
+                if (jsUrl[3] === 'true' && jsUrl[1] === 'app.launchURL') {
+                  resultObj.newWindow = true;
+                }
+                break;
+              }
+            }
+          default:
+            (0, _util.warn)('parseDestDictionary: unsupported action type "' + actionName + '".');
+            break;
+        }
+      } else if (destDict.has('Dest')) {
+        dest = destDict.get('Dest');
       }
-    } else if (destDict.has('Dest')) {
-      dest = destDict.get('Dest');
+      if ((0, _util.isString)(url)) {
+        url = tryConvertUrlEncoding(url);
+        var absoluteUrl = (0, _util.createValidAbsoluteUrl)(url, docBaseUrl);
+        if (absoluteUrl) {
+          resultObj.url = absoluteUrl.href;
+        }
+        resultObj.unsafeUrl = url;
+      }
+      if (dest) {
+        if ((0, _primitives.isName)(dest)) {
+          dest = dest.name;
+        }
+        if ((0, _util.isString)(dest) || Array.isArray(dest)) {
+          resultObj.dest = dest;
+        }
+      }
     }
-    if ((0, _util.isString)(url)) {
-      url = tryConvertUrlEncoding(url);
-      var absoluteUrl = (0, _util.createValidAbsoluteUrl)(url, docBaseUrl);
-      if (absoluteUrl) {
-        resultObj.url = absoluteUrl.href;
-      }
-      resultObj.unsafeUrl = url;
-    }
-    if (dest) {
-      if ((0, _primitives.isName)(dest)) {
-        dest = dest.name;
-      }
-      if ((0, _util.isString)(dest) || Array.isArray(dest)) {
-        resultObj.dest = dest;
-      }
-    }
-  };
+  }]);
+
   return Catalog;
 }();
+
 var XRef = function XRefClosure() {
   function XRef(stream, pdfManager) {
     this.stream = stream;
@@ -713,14 +817,36 @@ var XRef = function XRefClosure() {
       }
       trailerDict.assignXref(this);
       this.trailer = trailerDict;
-      var encrypt = trailerDict.get('Encrypt');
+      var encrypt = void 0;
+      try {
+        encrypt = trailerDict.get('Encrypt');
+      } catch (ex) {
+        if (ex instanceof _util.MissingDataException) {
+          throw ex;
+        }
+        (0, _util.warn)('XRef.parse - Invalid "Encrypt" reference: "' + ex + '".');
+      }
       if ((0, _primitives.isDict)(encrypt)) {
         var ids = trailerDict.get('ID');
         var fileId = ids && ids.length ? ids[0] : '';
         encrypt.suppressEncryption = true;
         this.encrypt = new _crypto.CipherTransformFactory(encrypt, fileId, this.pdfManager.password);
       }
-      if (!(this.root = trailerDict.get('Root'))) {
+      var root = void 0;
+      try {
+        root = trailerDict.get('Root');
+      } catch (ex) {
+        if (ex instanceof _util.MissingDataException) {
+          throw ex;
+        }
+        (0, _util.warn)('XRef.parse - Invalid "Root" reference: "' + ex + '".');
+      }
+      if ((0, _primitives.isDict)(root) && root.has('Pages')) {
+        this.root = root;
+      } else {
+        if (!recoveryMode) {
+          throw new _util.XRefParseException();
+        }
         throw new _util.FormatError('Invalid root reference');
       }
     },
@@ -919,9 +1045,12 @@ var XRef = function XRefClosure() {
         return skipped;
       }
       var objRegExp = /^(\d+)\s+(\d+)\s+obj\b/;
+      var endobjRegExp = /\bendobj[\b\s]$/;
+      var nestedObjRegExp = /\s+(\d+\s+\d+\s+obj[\b\s])$/;
+      var CHECK_CONTENT_LENGTH = 25;
       var trailerBytes = new Uint8Array([116, 114, 97, 105, 108, 101, 114]);
       var startxrefBytes = new Uint8Array([115, 116, 97, 114, 116, 120, 114, 101, 102]);
-      var endobjBytes = new Uint8Array([101, 110, 100, 111, 98, 106]);
+      var objBytes = new Uint8Array([111, 98, 106]);
       var xrefBytes = new Uint8Array([47, 88, 82, 101, 102]);
       this.entries.length = 0;
       var stream = this.stream;
@@ -961,7 +1090,25 @@ var XRef = function XRefClosure() {
               uncompressed: true
             };
           }
-          var contentLength = skipUntil(buffer, position, endobjBytes) + 7;
+          var contentLength = void 0,
+              startPos = position + token.length;
+          while (startPos < buffer.length) {
+            var endPos = startPos + skipUntil(buffer, startPos, objBytes) + 4;
+            contentLength = endPos - position;
+            var checkPos = Math.max(endPos - CHECK_CONTENT_LENGTH, startPos);
+            var tokenStr = (0, _util.bytesToString)(buffer.subarray(checkPos, endPos));
+            if (endobjRegExp.test(tokenStr)) {
+              break;
+            } else {
+              var objToken = nestedObjRegExp.exec(tokenStr);
+              if (objToken && objToken[1]) {
+                (0, _util.warn)('indexObjects: Found new "obj" inside of another "obj", ' + 'caused by missing "endobj" -- trying to recover.');
+                contentLength -= objToken[1].length;
+                break;
+              }
+            }
+            startPos = endPos;
+          }
           var content = buffer.subarray(position, position + contentLength);
           var xrefTagOffset = skipUntil(content, 0, xrefBytes);
           if (xrefTagOffset < contentLength && content[xrefTagOffset + 5] < 64) {
@@ -981,7 +1128,7 @@ var XRef = function XRefClosure() {
         this.startXRefQueue.push(xrefStms[i]);
         this.readXRef(true);
       }
-      var dict;
+      var trailerDict = void 0;
       for (i = 0, ii = trailers.length; i < ii; ++i) {
         stream.pos = trailers[i];
         var parser = new _parser.Parser(new _parser.Lexer(stream), true, this, true);
@@ -989,16 +1136,29 @@ var XRef = function XRefClosure() {
         if (!(0, _primitives.isCmd)(obj, 'trailer')) {
           continue;
         }
-        dict = parser.getObj();
+        var dict = parser.getObj();
         if (!(0, _primitives.isDict)(dict)) {
+          continue;
+        }
+        var rootDict = void 0;
+        try {
+          rootDict = dict.get('Root');
+        } catch (ex) {
+          if (ex instanceof _util.MissingDataException) {
+            throw ex;
+          }
+          continue;
+        }
+        if (!(0, _primitives.isDict)(rootDict) || !rootDict.has('Pages')) {
           continue;
         }
         if (dict.has('ID')) {
           return dict;
         }
+        trailerDict = dict;
       }
-      if (dict) {
-        return dict;
+      if (trailerDict) {
+        return trailerDict;
       }
       throw new _util.InvalidPDFException('Invalid PDF structure');
     },
@@ -1190,41 +1350,100 @@ var XRef = function XRefClosure() {
       }
       return xrefEntry;
     },
-    fetchIfRefAsync: function XRef_fetchIfRefAsync(obj, suppressEncryption) {
-      if (!(0, _primitives.isRef)(obj)) {
-        return Promise.resolve(obj);
-      }
-      return this.fetchAsync(obj, suppressEncryption);
-    },
-    fetchAsync: function XRef_fetchAsync(ref, suppressEncryption) {
-      var streamManager = this.stream.manager;
-      var xref = this;
-      return new Promise(function tryFetch(resolve, reject) {
-        try {
-          resolve(xref.fetch(ref, suppressEncryption));
-        } catch (e) {
-          if (e instanceof _util.MissingDataException) {
-            streamManager.requestRange(e.begin, e.end).then(function () {
-              tryFetch(resolve, reject);
-            }, reject);
-            return;
+    fetchIfRefAsync: function () {
+      var _ref = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee(obj, suppressEncryption) {
+        return _regenerator2.default.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                if ((0, _primitives.isRef)(obj)) {
+                  _context.next = 2;
+                  break;
+                }
+
+                return _context.abrupt('return', obj);
+
+              case 2:
+                return _context.abrupt('return', this.fetchAsync(obj, suppressEncryption));
+
+              case 3:
+              case 'end':
+                return _context.stop();
+            }
           }
-          reject(e);
-        }
-      });
-    },
+        }, _callee, this);
+      }));
+
+      function fetchIfRefAsync(_x, _x2) {
+        return _ref.apply(this, arguments);
+      }
+
+      return fetchIfRefAsync;
+    }(),
+    fetchAsync: function () {
+      var _ref2 = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee2(ref, suppressEncryption) {
+        return _regenerator2.default.wrap(function _callee2$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                _context2.prev = 0;
+                return _context2.abrupt('return', this.fetch(ref, suppressEncryption));
+
+              case 4:
+                _context2.prev = 4;
+                _context2.t0 = _context2['catch'](0);
+
+                if (_context2.t0 instanceof _util.MissingDataException) {
+                  _context2.next = 8;
+                  break;
+                }
+
+                throw _context2.t0;
+
+              case 8:
+                _context2.next = 10;
+                return this.pdfManager.requestRange(_context2.t0.begin, _context2.t0.end);
+
+              case 10:
+                return _context2.abrupt('return', this.fetchAsync(ref, suppressEncryption));
+
+              case 11:
+              case 'end':
+                return _context2.stop();
+            }
+          }
+        }, _callee2, this, [[0, 4]]);
+      }));
+
+      function fetchAsync(_x3, _x4) {
+        return _ref2.apply(this, arguments);
+      }
+
+      return fetchAsync;
+    }(),
+
     getCatalogObj: function XRef_getCatalogObj() {
       return this.root;
     }
   };
   return XRef;
 }();
-var NameOrNumberTree = function NameOrNumberTreeClosure() {
-  function NameOrNumberTree(root, xref) {
-    throw new Error('Cannot initialize NameOrNumberTree.');
+
+var NameOrNumberTree = function () {
+  function NameOrNumberTree(root, xref, type) {
+    _classCallCheck(this, NameOrNumberTree);
+
+    if (this.constructor === NameOrNumberTree) {
+      (0, _util.unreachable)('Cannot initialize NameOrNumberTree.');
+    }
+    this.root = root;
+    this.xref = xref;
+    this._type = type;
   }
-  NameOrNumberTree.prototype = {
-    getAll: function NameOrNumberTree_getAll() {
+
+  _createClass(NameOrNumberTree, [{
+    key: 'getAll',
+    value: function getAll() {
       var dict = Object.create(null);
       if (!this.root) {
         return dict;
@@ -1234,15 +1453,14 @@ var NameOrNumberTree = function NameOrNumberTreeClosure() {
       processed.put(this.root);
       var queue = [this.root];
       while (queue.length > 0) {
-        var i, n;
         var obj = xref.fetchIfRef(queue.shift());
         if (!(0, _primitives.isDict)(obj)) {
           continue;
         }
         if (obj.has('Kids')) {
-          var kids = obj.get('Kids');
-          for (i = 0, n = kids.length; i < n; i++) {
-            var kid = kids[i];
+          var _kids = obj.get('Kids');
+          for (var i = 0, ii = _kids.length; i < ii; i++) {
+            var kid = _kids[i];
             if (processed.has(kid)) {
               throw new _util.FormatError('Duplicate entry in "' + this._type + '" tree.');
             }
@@ -1253,14 +1471,16 @@ var NameOrNumberTree = function NameOrNumberTreeClosure() {
         }
         var entries = obj.get(this._type);
         if (Array.isArray(entries)) {
-          for (i = 0, n = entries.length; i < n; i += 2) {
-            dict[xref.fetchIfRef(entries[i])] = xref.fetchIfRef(entries[i + 1]);
+          for (var _i2 = 0, _ii = entries.length; _i2 < _ii; _i2 += 2) {
+            dict[xref.fetchIfRef(entries[_i2])] = xref.fetchIfRef(entries[_i2 + 1]);
           }
         }
       }
       return dict;
-    },
-    get: function NameOrNumberTree_get(key) {
+    }
+  }, {
+    key: 'get',
+    value: function get(key) {
       if (!this.root) {
         return null;
       }
@@ -1268,28 +1488,27 @@ var NameOrNumberTree = function NameOrNumberTreeClosure() {
       var kidsOrEntries = xref.fetchIfRef(this.root);
       var loopCount = 0;
       var MAX_LEVELS = 10;
-      var l, r, m;
       while (kidsOrEntries.has('Kids')) {
         if (++loopCount > MAX_LEVELS) {
           (0, _util.warn)('Search depth limit reached for "' + this._type + '" tree.');
           return null;
         }
-        var kids = kidsOrEntries.get('Kids');
-        if (!Array.isArray(kids)) {
+        var _kids2 = kidsOrEntries.get('Kids');
+        if (!Array.isArray(_kids2)) {
           return null;
         }
-        l = 0;
-        r = kids.length - 1;
+        var l = 0,
+            r = _kids2.length - 1;
         while (l <= r) {
-          m = l + r >> 1;
-          var kid = xref.fetchIfRef(kids[m]);
+          var m = l + r >> 1;
+          var kid = xref.fetchIfRef(_kids2[m]);
           var limits = kid.get('Limits');
           if (key < xref.fetchIfRef(limits[0])) {
             r = m - 1;
           } else if (key > xref.fetchIfRef(limits[1])) {
             l = m + 1;
           } else {
-            kidsOrEntries = xref.fetchIfRef(kids[m]);
+            kidsOrEntries = xref.fetchIfRef(_kids2[m]);
             break;
           }
         }
@@ -1299,43 +1518,51 @@ var NameOrNumberTree = function NameOrNumberTreeClosure() {
       }
       var entries = kidsOrEntries.get(this._type);
       if (Array.isArray(entries)) {
-        l = 0;
-        r = entries.length - 2;
-        while (l <= r) {
-          m = l + r & ~1;
-          var currentKey = xref.fetchIfRef(entries[m]);
+        var _l = 0,
+            _r = entries.length - 2;
+        while (_l <= _r) {
+          var _m = _l + _r & ~1;
+          var currentKey = xref.fetchIfRef(entries[_m]);
           if (key < currentKey) {
-            r = m - 2;
+            _r = _m - 2;
           } else if (key > currentKey) {
-            l = m + 2;
+            _l = _m + 2;
           } else {
-            return xref.fetchIfRef(entries[m + 1]);
+            return xref.fetchIfRef(entries[_m + 1]);
           }
         }
       }
       return null;
     }
-  };
+  }]);
+
   return NameOrNumberTree;
 }();
-var NameTree = function NameTreeClosure() {
+
+var NameTree = function (_NameOrNumberTree) {
+  _inherits(NameTree, _NameOrNumberTree);
+
   function NameTree(root, xref) {
-    this.root = root;
-    this.xref = xref;
-    this._type = 'Names';
+    _classCallCheck(this, NameTree);
+
+    return _possibleConstructorReturn(this, (NameTree.__proto__ || Object.getPrototypeOf(NameTree)).call(this, root, xref, 'Names'));
   }
-  _util.Util.inherit(NameTree, NameOrNumberTree, {});
+
   return NameTree;
-}();
-var NumberTree = function NumberTreeClosure() {
+}(NameOrNumberTree);
+
+var NumberTree = function (_NameOrNumberTree2) {
+  _inherits(NumberTree, _NameOrNumberTree2);
+
   function NumberTree(root, xref) {
-    this.root = root;
-    this.xref = xref;
-    this._type = 'Nums';
+    _classCallCheck(this, NumberTree);
+
+    return _possibleConstructorReturn(this, (NumberTree.__proto__ || Object.getPrototypeOf(NumberTree)).call(this, root, xref, 'Nums'));
   }
-  _util.Util.inherit(NumberTree, NameOrNumberTree, {});
+
   return NumberTree;
-}();
+}(NameOrNumberTree);
+
 var FileSpec = function FileSpecClosure() {
   function FileSpec(root, xref) {
     if (!root || !(0, _primitives.isDict)(root)) {
@@ -1423,8 +1650,8 @@ var ObjectLoader = function () {
         }
       }
     } else if (Array.isArray(node)) {
-      for (var _i = 0, _ii = node.length; _i < _ii; _i++) {
-        var value = node[_i];
+      for (var _i3 = 0, _ii2 = node.length; _i3 < _ii2; _i3++) {
+        var value = node[_i3];
         if (mayHaveChildren(value)) {
           nodesToVisit.push(value);
         }
@@ -1460,32 +1687,32 @@ var ObjectLoader = function () {
       return this.capability.promise;
     },
     _walk: function _walk(nodesToVisit) {
-      var _this3 = this;
+      var _this4 = this;
 
       var nodesToRevisit = [];
       var pendingRequests = [];
       while (nodesToVisit.length) {
-        var currentNode = nodesToVisit.pop();
-        if ((0, _primitives.isRef)(currentNode)) {
-          if (this.refSet.has(currentNode)) {
+        var _currentNode = nodesToVisit.pop();
+        if ((0, _primitives.isRef)(_currentNode)) {
+          if (this.refSet.has(_currentNode)) {
             continue;
           }
           try {
-            this.refSet.put(currentNode);
-            currentNode = this.xref.fetch(currentNode);
+            this.refSet.put(_currentNode);
+            _currentNode = this.xref.fetch(_currentNode);
           } catch (ex) {
             if (!(ex instanceof _util.MissingDataException)) {
               throw ex;
             }
-            nodesToRevisit.push(currentNode);
+            nodesToRevisit.push(_currentNode);
             pendingRequests.push({
               begin: ex.begin,
               end: ex.end
             });
           }
         }
-        if (currentNode && currentNode.getBaseStreams) {
-          var baseStreams = currentNode.getBaseStreams();
+        if (_currentNode && _currentNode.getBaseStreams) {
+          var baseStreams = _currentNode.getBaseStreams();
           var foundMissingData = false;
           for (var i = 0, ii = baseStreams.length; i < ii; i++) {
             var stream = baseStreams[i];
@@ -1498,20 +1725,20 @@ var ObjectLoader = function () {
             }
           }
           if (foundMissingData) {
-            nodesToRevisit.push(currentNode);
+            nodesToRevisit.push(_currentNode);
           }
         }
-        addChildren(currentNode, nodesToVisit);
+        addChildren(_currentNode, nodesToVisit);
       }
       if (pendingRequests.length) {
         this.xref.stream.manager.requestRanges(pendingRequests).then(function () {
-          for (var _i2 = 0, _ii2 = nodesToRevisit.length; _i2 < _ii2; _i2++) {
-            var node = nodesToRevisit[_i2];
+          for (var _i4 = 0, _ii3 = nodesToRevisit.length; _i4 < _ii3; _i4++) {
+            var node = nodesToRevisit[_i4];
             if ((0, _primitives.isRef)(node)) {
-              _this3.refSet.remove(node);
+              _this4.refSet.remove(node);
             }
           }
-          _this3._walk(nodesToRevisit);
+          _this4._walk(nodesToRevisit);
         }, this.capability.reject);
         return;
       }

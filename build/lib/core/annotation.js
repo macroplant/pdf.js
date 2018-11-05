@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -31,7 +38,7 @@ var _primitives = require('./primitives');
 
 var _colorspace = require('./colorspace');
 
-var _evaluator = require('./evaluator');
+var _operator_list = require('./operator_list');
 
 var _stream = require('./stream');
 
@@ -49,6 +56,11 @@ var AnnotationFactory = function () {
   _createClass(AnnotationFactory, null, [{
     key: 'create',
     value: function create(xref, ref, pdfManager, idFactory) {
+      return pdfManager.ensure(this, '_create', [xref, ref, pdfManager, idFactory]);
+    }
+  }, {
+    key: '_create',
+    value: function _create(xref, ref, pdfManager, idFactory) {
       var dict = xref.fetchIfRef(ref);
       if (!(0, _primitives.isDict)(dict)) {
         return;
@@ -70,7 +82,10 @@ var AnnotationFactory = function () {
         case 'Text':
           return new TextAnnotation(parameters);
         case 'Widget':
-          var fieldType = _util.Util.getInheritableProperty(dict, 'FT');
+          var fieldType = (0, _util.getInheritableProperty)({
+            dict: dict,
+            key: 'FT'
+          });
           fieldType = (0, _primitives.isName)(fieldType) ? fieldType.name : null;
           switch (fieldType) {
             case 'Tx':
@@ -192,7 +207,7 @@ var Annotation = function () {
   }, {
     key: 'setColor',
     value: function setColor(color) {
-      var rgbColor = new Uint8Array(3);
+      var rgbColor = new Uint8ClampedArray(3);
       if (!Array.isArray(color)) {
         this.color = rgbColor;
         return;
@@ -298,7 +313,7 @@ var Annotation = function () {
       var _this = this;
 
       if (!this.appearance) {
-        return Promise.resolve(new _evaluator.OperatorList());
+        return Promise.resolve(new _operator_list.OperatorList());
       }
       var data = this.data;
       var appearanceDict = this.appearance.dict;
@@ -307,7 +322,7 @@ var Annotation = function () {
       var matrix = appearanceDict.getArray('Matrix') || [1, 0, 0, 1, 0, 0];
       var transform = getTransformMatrix(data.rect, bbox, matrix);
       return resourcesPromise.then(function (resources) {
-        var opList = new _evaluator.OperatorList();
+        var opList = new _operator_list.OperatorList();
         opList.addOp(_util.OPS.beginAnnotation, [data.rect, transform, matrix]);
         return evaluator.getOperatorList({
           stream: _this.appearance,
@@ -442,13 +457,29 @@ var WidgetAnnotation = function (_Annotation) {
     var data = _this2.data;
     data.annotationType = _util.AnnotationType.WIDGET;
     data.fieldName = _this2._constructFieldName(dict);
-    data.fieldValue = _util.Util.getInheritableProperty(dict, 'V', true);
+    data.fieldValue = (0, _util.getInheritableProperty)({
+      dict: dict,
+      key: 'V',
+      getArray: true
+    });
     data.alternativeText = (0, _util.stringToPDFString)(dict.get('TU') || '');
-    data.defaultAppearance = _util.Util.getInheritableProperty(dict, 'DA') || '';
-    var fieldType = _util.Util.getInheritableProperty(dict, 'FT');
+    data.defaultAppearance = (0, _util.getInheritableProperty)({
+      dict: dict,
+      key: 'DA'
+    }) || '';
+    var fieldType = (0, _util.getInheritableProperty)({
+      dict: dict,
+      key: 'FT'
+    });
     data.fieldType = (0, _primitives.isName)(fieldType) ? fieldType.name : null;
-    _this2.fieldResources = _util.Util.getInheritableProperty(dict, 'DR') || _primitives.Dict.empty;
-    data.fieldFlags = _util.Util.getInheritableProperty(dict, 'Ff');
+    _this2.fieldResources = (0, _util.getInheritableProperty)({
+      dict: dict,
+      key: 'DR'
+    }) || _primitives.Dict.empty;
+    data.fieldFlags = (0, _util.getInheritableProperty)({
+      dict: dict,
+      key: 'Ff'
+    });
     if (!Number.isInteger(data.fieldFlags) || data.fieldFlags < 0) {
       data.fieldFlags = 0;
     }
@@ -494,7 +525,7 @@ var WidgetAnnotation = function (_Annotation) {
     key: 'getOperatorList',
     value: function getOperatorList(evaluator, task, renderForms) {
       if (renderForms) {
-        return Promise.resolve(new _evaluator.OperatorList());
+        return Promise.resolve(new _operator_list.OperatorList());
       }
       return _get(WidgetAnnotation.prototype.__proto__ || Object.getPrototypeOf(WidgetAnnotation.prototype), 'getOperatorList', this).call(this, evaluator, task, renderForms);
     }
@@ -511,13 +542,20 @@ var TextWidgetAnnotation = function (_WidgetAnnotation) {
 
     var _this3 = _possibleConstructorReturn(this, (TextWidgetAnnotation.__proto__ || Object.getPrototypeOf(TextWidgetAnnotation)).call(this, params));
 
+    var dict = params.dict;
     _this3.data.fieldValue = (0, _util.stringToPDFString)(_this3.data.fieldValue || '');
-    var alignment = _util.Util.getInheritableProperty(params.dict, 'Q');
+    var alignment = (0, _util.getInheritableProperty)({
+      dict: dict,
+      key: 'Q'
+    });
     if (!Number.isInteger(alignment) || alignment < 0 || alignment > 2) {
       alignment = null;
     }
     _this3.data.textAlignment = alignment;
-    var maximumLength = _util.Util.getInheritableProperty(params.dict, 'MaxLen');
+    var maximumLength = (0, _util.getInheritableProperty)({
+      dict: dict,
+      key: 'MaxLen'
+    });
     if (!Number.isInteger(maximumLength) || maximumLength < 0) {
       maximumLength = null;
     }
@@ -533,7 +571,7 @@ var TextWidgetAnnotation = function (_WidgetAnnotation) {
       if (renderForms || this.appearance) {
         return _get(TextWidgetAnnotation.prototype.__proto__ || Object.getPrototypeOf(TextWidgetAnnotation.prototype), 'getOperatorList', this).call(this, evaluator, task, renderForms);
       }
-      var operatorList = new _evaluator.OperatorList();
+      var operatorList = new _operator_list.OperatorList();
       if (!this.data.defaultAppearance) {
         return Promise.resolve(operatorList);
       }
@@ -561,40 +599,82 @@ var ButtonWidgetAnnotation = function (_WidgetAnnotation2) {
     var _this4 = _possibleConstructorReturn(this, (ButtonWidgetAnnotation.__proto__ || Object.getPrototypeOf(ButtonWidgetAnnotation)).call(this, params));
 
     _this4.data.checkBox = !_this4.hasFieldFlag(_util.AnnotationFieldFlag.RADIO) && !_this4.hasFieldFlag(_util.AnnotationFieldFlag.PUSHBUTTON);
-    if (_this4.data.checkBox) {
-      if (!(0, _primitives.isName)(_this4.data.fieldValue)) {
-        return _possibleConstructorReturn(_this4);
-      }
-      _this4.data.fieldValue = _this4.data.fieldValue.name;
-    }
     _this4.data.radioButton = _this4.hasFieldFlag(_util.AnnotationFieldFlag.RADIO) && !_this4.hasFieldFlag(_util.AnnotationFieldFlag.PUSHBUTTON);
-    if (_this4.data.radioButton) {
-      _this4.data.fieldValue = _this4.data.buttonValue = null;
+    _this4.data.pushButton = _this4.hasFieldFlag(_util.AnnotationFieldFlag.PUSHBUTTON);
+    if (_this4.data.checkBox) {
+      _this4._processCheckBox(params);
+    } else if (_this4.data.radioButton) {
+      _this4._processRadioButton(params);
+    } else if (_this4.data.pushButton) {
+      _this4._processPushButton(params);
+    } else {
+      (0, _util.warn)('Invalid field flags for button widget annotation');
+    }
+    return _this4;
+  }
+
+  _createClass(ButtonWidgetAnnotation, [{
+    key: '_processCheckBox',
+    value: function _processCheckBox(params) {
+      if ((0, _primitives.isName)(this.data.fieldValue)) {
+        this.data.fieldValue = this.data.fieldValue.name;
+      }
+      var customAppearance = params.dict.get('AP');
+      if (!(0, _primitives.isDict)(customAppearance)) {
+        return;
+      }
+      var exportValueOptionsDict = customAppearance.get('D');
+      if (!(0, _primitives.isDict)(exportValueOptionsDict)) {
+        return;
+      }
+      var exportValues = exportValueOptionsDict.getKeys();
+      var hasCorrectOptionCount = exportValues.length === 2;
+      if (!hasCorrectOptionCount) {
+        return;
+      }
+      this.data.exportValue = exportValues[0] === 'Off' ? exportValues[1] : exportValues[0];
+    }
+  }, {
+    key: '_processRadioButton',
+    value: function _processRadioButton(params) {
+      this.data.fieldValue = this.data.buttonValue = null;
       var fieldParent = params.dict.get('Parent');
       if ((0, _primitives.isDict)(fieldParent) && fieldParent.has('V')) {
         var fieldParentValue = fieldParent.get('V');
         if ((0, _primitives.isName)(fieldParentValue)) {
-          _this4.data.fieldValue = fieldParentValue.name;
+          this.data.fieldValue = fieldParentValue.name;
         }
       }
       var appearanceStates = params.dict.get('AP');
       if (!(0, _primitives.isDict)(appearanceStates)) {
-        return _possibleConstructorReturn(_this4);
+        return;
       }
       var normalAppearanceState = appearanceStates.get('N');
       if (!(0, _primitives.isDict)(normalAppearanceState)) {
-        return _possibleConstructorReturn(_this4);
+        return;
       }
       var keys = normalAppearanceState.getKeys();
       for (var i = 0, ii = keys.length; i < ii; i++) {
         if (keys[i] !== 'Off') {
-          _this4.data.buttonValue = keys[i];
+          this.data.buttonValue = keys[i];
           break;
         }
       }
     }
-    return _this4;
-  }
+  }, {
+    key: '_processPushButton',
+    value: function _processPushButton(params) {
+      if (!params.dict.has('A')) {
+        (0, _util.warn)('Push buttons without action dictionaries are not supported');
+        return;
+      }
+      _obj.Catalog.parseDestDictionary({
+        destDict: params.dict,
+        resultObj: this.data,
+        docBaseUrl: params.pdfManager.docBaseUrl
+      });
+    }
+  }]);
 
   return ButtonWidgetAnnotation;
 }(WidgetAnnotation);
@@ -608,7 +688,10 @@ var ChoiceWidgetAnnotation = function (_WidgetAnnotation3) {
     var _this5 = _possibleConstructorReturn(this, (ChoiceWidgetAnnotation.__proto__ || Object.getPrototypeOf(ChoiceWidgetAnnotation)).call(this, params));
 
     _this5.data.options = [];
-    var options = _util.Util.getInheritableProperty(params.dict, 'Opt');
+    var options = (0, _util.getInheritableProperty)({
+      dict: params.dict,
+      key: 'Opt'
+    });
     if (Array.isArray(options)) {
       var xref = params.xref;
       for (var i = 0, ii = options.length; i < ii; i++) {
@@ -616,7 +699,7 @@ var ChoiceWidgetAnnotation = function (_WidgetAnnotation3) {
         var isOptionArray = Array.isArray(option);
         _this5.data.options[i] = {
           exportValue: isOptionArray ? xref.fetchIfRef(option[0]) : option,
-          displayValue: isOptionArray ? xref.fetchIfRef(option[1]) : option
+          displayValue: (0, _util.stringToPDFString)(isOptionArray ? xref.fetchIfRef(option[1]) : option)
         };
       }
     }

@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,13 +15,16 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.CFFCompiler = exports.CFFPrivateDict = exports.CFFTopDict = exports.CFFCharset = exports.CFFIndex = exports.CFFStrings = exports.CFFHeader = exports.CFF = exports.CFFParser = exports.CFFStandardStrings = undefined;
+exports.CFFFDSelect = exports.CFFCompiler = exports.CFFPrivateDict = exports.CFFTopDict = exports.CFFCharset = exports.CFFIndex = exports.CFFStrings = exports.CFFHeader = exports.CFF = exports.CFFParser = exports.CFFStandardStrings = undefined;
 
 var _util = require('../shared/util');
 
@@ -428,21 +435,7 @@ var CFFParser = function CFFParserClosure() {
       var names = [];
       for (var i = 0, ii = index.count; i < ii; ++i) {
         var name = index.get(i);
-        var length = Math.min(name.length, 127);
-        var data = [];
-        for (var j = 0; j < length; ++j) {
-          var c = name[j];
-          if (j === 0 && c === 0) {
-            data[j] = c;
-            continue;
-          }
-          if (c < 33 || c > 126 || c === 91 || c === 93 || c === 40 || c === 41 || c === 123 || c === 125 || c === 60 || c === 62 || c === 47 || c === 37 || c === 35) {
-            data[j] = 95;
-            continue;
-          }
-          data[j] = c;
-        }
-        names.push((0, _util.bytesToString)(data));
+        names.push((0, _util.bytesToString)(name));
       }
       return names;
     },
@@ -803,20 +796,16 @@ var CFFParser = function CFFParserClosure() {
       return new CFFEncoding(predefined, format, encoding, raw);
     },
     parseFDSelect: function CFFParser_parseFDSelect(pos, length) {
-      var start = pos;
       var bytes = this.bytes;
       var format = bytes[pos++];
-      var fdSelect = [],
-          rawBytes;
-      var i,
-          invalidFirstGID = false;
+      var fdSelect = [];
+      var i;
       switch (format) {
         case 0:
           for (i = 0; i < length; ++i) {
             var id = bytes[pos++];
             fdSelect.push(id);
           }
-          rawBytes = bytes.subarray(start, pos);
           break;
         case 3:
           var rangesCount = bytes[pos++] << 8 | bytes[pos++];
@@ -824,7 +813,6 @@ var CFFParser = function CFFParserClosure() {
             var first = bytes[pos++] << 8 | bytes[pos++];
             if (i === 0 && first !== 0) {
               (0, _util.warn)('parseFDSelect: The first range must have a first GID of 0' + ' -- trying to recover.');
-              invalidFirstGID = true;
               first = 0;
             }
             var fdIndex = bytes[pos++];
@@ -834,10 +822,6 @@ var CFFParser = function CFFParserClosure() {
             }
           }
           pos += 2;
-          rawBytes = bytes.subarray(start, pos);
-          if (invalidFirstGID) {
-            rawBytes[3] = rawBytes[4] = 0;
-          }
           break;
         default:
           throw new _util.FormatError('parseFDSelect: Unknown format "' + format + '".');
@@ -845,7 +829,7 @@ var CFFParser = function CFFParserClosure() {
       if (fdSelect.length !== length) {
         throw new _util.FormatError('parseFDSelect: Invalid font data.');
       }
-      return new CFFFDSelect(fdSelect, rawBytes);
+      return new CFFFDSelect(format, fdSelect);
     }
   };
   return CFFParser;
@@ -864,6 +848,26 @@ var CFF = function CFFClosure() {
     this.fdSelect = null;
     this.isCIDFont = false;
   }
+  CFF.prototype = {
+    duplicateFirstGlyph: function CFF_duplicateFirstGlyph() {
+      if (this.charStrings.count >= 65535) {
+        (0, _util.warn)('Not enough space in charstrings to duplicate first glyph.');
+        return;
+      }
+      var glyphZero = this.charStrings.get(0);
+      this.charStrings.add(glyphZero);
+      if (this.isCIDFont) {
+        this.fdSelect.fdSelect.push(this.fdSelect.fdSelect[0]);
+      }
+    },
+    hasGlyphId: function CFF_hasGlyphID(id) {
+      if (id < 0 || id >= this.charStrings.count) {
+        return false;
+      }
+      var glyph = this.charStrings.get(id);
+      return glyph.length > 0;
+    }
+  };
   return CFF;
 }();
 var CFFHeader = function CFFHeaderClosure() {
@@ -1050,9 +1054,9 @@ var CFFEncoding = function CFFEncodingClosure() {
   return CFFEncoding;
 }();
 var CFFFDSelect = function CFFFDSelectClosure() {
-  function CFFFDSelect(fdSelect, raw) {
+  function CFFFDSelect(format, fdSelect) {
+    this.format = format;
     this.fdSelect = fdSelect;
-    this.raw = raw;
   }
   CFFFDSelect.prototype = {
     getFDIndex: function CFFFDSelect_get(glyphIndex) {
@@ -1143,6 +1147,7 @@ var CFFCompiler = function CFFCompilerClosure() {
           }
         }
       }
+      cff.topDict.setByName('charset', 0);
       var compiled = this.compileTopDicts([cff.topDict], output.length, cff.isCIDFont);
       output.add(compiled.output);
       var topDictTracker = compiled.trackers[0];
@@ -1159,21 +1164,15 @@ var CFFCompiler = function CFFCompilerClosure() {
           output.add(encoding);
         }
       }
-      if (cff.charset && cff.topDict.hasName('charset')) {
-        if (cff.charset.predefined) {
-          topDictTracker.setEntryLocation('charset', [cff.charset.format], output);
-        } else {
-          var charset = this.compileCharset(cff.charset);
-          topDictTracker.setEntryLocation('charset', [output.length], output);
-          output.add(charset);
-        }
-      }
+      var charset = this.compileCharset(cff.charset);
+      topDictTracker.setEntryLocation('charset', [output.length], output);
+      output.add(charset);
       var charStrings = this.compileCharStrings(cff.charStrings);
       topDictTracker.setEntryLocation('CharStrings', [output.length], output);
       output.add(charStrings);
       if (cff.isCIDFont) {
         topDictTracker.setEntryLocation('FDSelect', [output.length], output);
-        var fdSelect = this.compileFDSelect(cff.fdSelect.raw);
+        var fdSelect = this.compileFDSelect(cff.fdSelect);
         output.add(fdSelect);
         compiled = this.compileTopDicts(cff.fdArray, output.length, true);
         topDictTracker.setEntryLocation('FDArray', [output.length], output);
@@ -1242,7 +1241,21 @@ var CFFCompiler = function CFFCompilerClosure() {
     compileNameIndex: function CFFCompiler_compileNameIndex(names) {
       var nameIndex = new CFFIndex();
       for (var i = 0, ii = names.length; i < ii; ++i) {
-        nameIndex.add((0, _util.stringToBytes)(names[i]));
+        var name = names[i];
+        var length = Math.min(name.length, 127);
+        var sanitizedName = new Array(length);
+        for (var j = 0; j < length; j++) {
+          var char = name[j];
+          if (char < '!' || char > '~' || char === '[' || char === ']' || char === '(' || char === ')' || char === '{' || char === '}' || char === '<' || char === '>' || char === '/' || char === '%') {
+            char = '_';
+          }
+          sanitizedName[j] = char;
+        }
+        sanitizedName = sanitizedName.join('');
+        if (sanitizedName === '') {
+          sanitizedName = 'Bad_Font_Name';
+        }
+        nameIndex.add((0, _util.stringToBytes)(sanitizedName));
       }
       return this.compileIndex(nameIndex);
     },
@@ -1354,16 +1367,56 @@ var CFFCompiler = function CFFCompilerClosure() {
       this.out.writeByteArray(this.compileIndex(globalSubrIndex));
     },
     compileCharStrings: function CFFCompiler_compileCharStrings(charStrings) {
-      return this.compileIndex(charStrings);
+      var charStringsIndex = new CFFIndex();
+      for (var i = 0; i < charStrings.count; i++) {
+        var glyph = charStrings.get(i);
+        if (glyph.length === 0) {
+          charStringsIndex.add(new Uint8Array([0x8B, 0x0E]));
+          continue;
+        }
+        charStringsIndex.add(glyph);
+      }
+      return this.compileIndex(charStringsIndex);
     },
     compileCharset: function CFFCompiler_compileCharset(charset) {
-      return this.compileTypedArray(charset.raw);
+      var length = 1 + (this.cff.charStrings.count - 1) * 2;
+      var out = new Uint8Array(length);
+      return this.compileTypedArray(out);
     },
     compileEncoding: function CFFCompiler_compileEncoding(encoding) {
       return this.compileTypedArray(encoding.raw);
     },
     compileFDSelect: function CFFCompiler_compileFDSelect(fdSelect) {
-      return this.compileTypedArray(fdSelect);
+      var format = fdSelect.format;
+      var out = void 0,
+          i = void 0;
+      switch (format) {
+        case 0:
+          out = new Uint8Array(1 + fdSelect.fdSelect.length);
+          out[0] = format;
+          for (i = 0; i < fdSelect.fdSelect.length; i++) {
+            out[i + 1] = fdSelect.fdSelect[i];
+          }
+          break;
+        case 3:
+          var start = 0;
+          var lastFD = fdSelect.fdSelect[0];
+          var ranges = [format, 0, 0, start >> 8 & 0xFF, start & 0xFF, lastFD];
+          for (i = 1; i < fdSelect.fdSelect.length; i++) {
+            var currentFD = fdSelect.fdSelect[i];
+            if (currentFD !== lastFD) {
+              ranges.push(i >> 8 & 0xFF, i & 0xFF, currentFD);
+              lastFD = currentFD;
+            }
+          }
+          var numRanges = (ranges.length - 3) / 3;
+          ranges[1] = numRanges >> 8 & 0xFF;
+          ranges[2] = numRanges & 0xFF;
+          ranges.push(i >> 8 & 0xFF, i & 0xFF);
+          out = new Uint8Array(ranges);
+          break;
+      }
+      return this.compileTypedArray(out);
     },
     compileTypedArray: function CFFCompiler_compileTypedArray(data) {
       var out = [];
@@ -1434,3 +1487,4 @@ exports.CFFCharset = CFFCharset;
 exports.CFFTopDict = CFFTopDict;
 exports.CFFPrivateDict = CFFPrivateDict;
 exports.CFFCompiler = CFFCompiler;
+exports.CFFFDSelect = CFFFDSelect;

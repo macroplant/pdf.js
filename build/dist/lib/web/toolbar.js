@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -87,16 +94,16 @@ var Toolbar = function () {
 
       var self = this;
       items.previous.addEventListener('click', function () {
-        eventBus.dispatch('previouspage');
+        eventBus.dispatch('previouspage', { source: self });
       });
       items.next.addEventListener('click', function () {
-        eventBus.dispatch('nextpage');
+        eventBus.dispatch('nextpage', { source: self });
       });
       items.zoomIn.addEventListener('click', function () {
-        eventBus.dispatch('zoomin');
+        eventBus.dispatch('zoomin', { source: self });
       });
       items.zoomOut.addEventListener('click', function () {
-        eventBus.dispatch('zoomout');
+        eventBus.dispatch('zoomout', { source: self });
       });
       items.pageNumber.addEventListener('click', function () {
         this.select();
@@ -117,16 +124,16 @@ var Toolbar = function () {
         });
       });
       items.presentationModeButton.addEventListener('click', function () {
-        eventBus.dispatch('presentationmode');
+        eventBus.dispatch('presentationmode', { source: self });
       });
       items.openFile.addEventListener('click', function () {
-        eventBus.dispatch('openfile');
+        eventBus.dispatch('openfile', { source: self });
       });
       items.print.addEventListener('click', function () {
-        eventBus.dispatch('print');
+        eventBus.dispatch('print', { source: self });
       });
       items.download.addEventListener('click', function () {
-        eventBus.dispatch('download');
+        eventBus.dispatch('download', { source: self });
       });
       items.scaleSelect.oncontextmenu = _ui_utils.noContextMenuHandler;
       eventBus.on('localized', function () {

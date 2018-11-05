@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -32,6 +39,25 @@ var JpegError = function JpegErrorClosure() {
   JpegError.constructor = JpegError;
   return JpegError;
 }();
+var DNLMarkerError = function DNLMarkerErrorClosure() {
+  function DNLMarkerError(message, scanLines) {
+    this.message = message;
+    this.scanLines = scanLines;
+  }
+  DNLMarkerError.prototype = new Error();
+  DNLMarkerError.prototype.name = 'DNLMarkerError';
+  DNLMarkerError.constructor = DNLMarkerError;
+  return DNLMarkerError;
+}();
+var EOIMarkerError = function EOIMarkerErrorClosure() {
+  function EOIMarkerError(message) {
+    this.message = message;
+  }
+  EOIMarkerError.prototype = new Error();
+  EOIMarkerError.prototype.name = 'EOIMarkerError';
+  EOIMarkerError.constructor = EOIMarkerError;
+  return EOIMarkerError;
+}();
 var JpegImage = function JpegImageClosure() {
   var dctZigZag = new Uint8Array([0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6, 7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59, 52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63]);
   var dctCos1 = 4017;
@@ -43,8 +69,14 @@ var JpegImage = function JpegImageClosure() {
   var dctSqrt2 = 5793;
   var dctSqrt1d2 = 2896;
   function JpegImage() {
-    this.decodeTransform = null;
-    this.colorTransform = -1;
+    var _ref = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+        _ref$decodeTransform = _ref.decodeTransform,
+        decodeTransform = _ref$decodeTransform === undefined ? null : _ref$decodeTransform,
+        _ref$colorTransform = _ref.colorTransform,
+        colorTransform = _ref$colorTransform === undefined ? -1 : _ref$colorTransform;
+
+    this._decodeTransform = decodeTransform;
+    this._colorTransform = colorTransform;
   }
   function buildHuffmanTable(codeLengths, values) {
     var k = 0,
@@ -95,6 +127,8 @@ var JpegImage = function JpegImageClosure() {
     return 64 * ((component.blocksPerLine + 1) * row + col);
   }
   function decodeScan(data, offset, frame, components, resetInterval, spectralStart, spectralEnd, successivePrev, successive) {
+    var parseDNLMarker = arguments.length > 9 && arguments[9] !== undefined ? arguments[9] : false;
+
     var mcusPerLine = frame.mcusPerLine;
     var progressive = frame.progressive;
     var startOffset = offset,
@@ -109,6 +143,15 @@ var JpegImage = function JpegImageClosure() {
       if (bitsData === 0xFF) {
         var nextByte = data[offset++];
         if (nextByte) {
+          if (nextByte === 0xDC && parseDNLMarker) {
+            offset += 2;
+            var scanLines = data[offset++] << 8 | data[offset++];
+            if (scanLines > 0 && scanLines !== frame.scanLines) {
+              throw new DNLMarkerError('Found DNL marker (0xFFDC) while parsing scan data', scanLines);
+            }
+          } else if (nextByte === 0xD9) {
+            throw new EOIMarkerError('Found EOI marker (0xFFD9) while parsing scan data');
+          }
           throw new JpegError('unexpected marker ' + (bitsData << 8 | nextByte).toString(16));
         }
       }
@@ -210,7 +253,8 @@ var JpegImage = function JpegImageClosure() {
       var s;
       var rs;
       while (k <= e) {
-        var z = dctZigZag[k];
+        var offsetZ = offset + dctZigZag[k];
+        var sign = component.blockData[offsetZ] < 0 ? -1 : 1;
         switch (successiveACState) {
           case 0:
             rs = decodeHuffman(component.huffmanTableAC);
@@ -234,8 +278,8 @@ var JpegImage = function JpegImageClosure() {
             continue;
           case 1:
           case 2:
-            if (component.blockData[offset + z]) {
-              component.blockData[offset + z] += readBit() << successive;
+            if (component.blockData[offsetZ]) {
+              component.blockData[offsetZ] += sign * (readBit() << successive);
             } else {
               r--;
               if (r === 0) {
@@ -244,16 +288,16 @@ var JpegImage = function JpegImageClosure() {
             }
             break;
           case 3:
-            if (component.blockData[offset + z]) {
-              component.blockData[offset + z] += readBit() << successive;
+            if (component.blockData[offsetZ]) {
+              component.blockData[offsetZ] += sign * (readBit() << successive);
             } else {
-              component.blockData[offset + z] = successiveACNextValue << successive;
+              component.blockData[offsetZ] = successiveACNextValue << successive;
               successiveACState = 0;
             }
             break;
           case 4:
-            if (component.blockData[offset + z]) {
-              component.blockData[offset + z] += readBit() << successive;
+            if (component.blockData[offsetZ]) {
+              component.blockData[offsetZ] += sign * (readBit() << successive);
             }
             break;
         }
@@ -331,7 +375,7 @@ var JpegImage = function JpegImageClosure() {
       bitsCount = 0;
       fileMarker = findNextFileMarker(data, offset);
       if (fileMarker && fileMarker.invalid) {
-        (0, _util.warn)('decodeScan - unexpected MCU data, next marker is: ' + fileMarker.invalid);
+        (0, _util.warn)('decodeScan - unexpected MCU data, current marker is: ' + fileMarker.invalid);
         offset = fileMarker.offset;
       }
       var marker = fileMarker && fileMarker.marker;
@@ -346,7 +390,7 @@ var JpegImage = function JpegImageClosure() {
     }
     fileMarker = findNextFileMarker(data, offset);
     if (fileMarker && fileMarker.invalid) {
-      (0, _util.warn)('decodeScan - unexpected Scan data, next marker is: ' + fileMarker.invalid);
+      (0, _util.warn)('decodeScan - unexpected Scan data, current marker is: ' + fileMarker.invalid);
       offset = fileMarker.offset;
     }
     return offset - startOffset;
@@ -512,7 +556,9 @@ var JpegImage = function JpegImageClosure() {
     }
     return component.blockData;
   }
-  function findNextFileMarker(data, currentPos, startPos) {
+  function findNextFileMarker(data, currentPos) {
+    var startPos = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : currentPos;
+
     function peekUint16(pos) {
       return data[pos] << 8 | data[pos + 1];
     }
@@ -544,6 +590,10 @@ var JpegImage = function JpegImageClosure() {
   }
   JpegImage.prototype = {
     parse: function parse(data) {
+      var _ref2 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+          _ref2$dnlScanLines = _ref2.dnlScanLines,
+          dnlScanLines = _ref2$dnlScanLines === undefined ? null : _ref2$dnlScanLines;
+
       function readUint16() {
         var value = data[offset] << 8 | data[offset + 1];
         offset += 2;
@@ -554,7 +604,7 @@ var JpegImage = function JpegImageClosure() {
         var endOffset = offset + length - 2;
         var fileMarker = findNextFileMarker(data, endOffset, offset);
         if (fileMarker && fileMarker.invalid) {
-          (0, _util.warn)('readDataBlock - incorrect length, next marker is: ' + fileMarker.invalid);
+          (0, _util.warn)('readDataBlock - incorrect length, current marker is: ' + fileMarker.invalid);
           endOffset = fileMarker.offset;
         }
         var array = data.subarray(offset, endOffset);
@@ -582,6 +632,7 @@ var JpegImage = function JpegImageClosure() {
       var jfif = null;
       var adobe = null;
       var frame, resetInterval;
+      var numSOSMarkers = 0;
       var quantizationTables = [];
       var huffmanTablesAC = [],
           huffmanTablesDC = [];
@@ -590,7 +641,7 @@ var JpegImage = function JpegImageClosure() {
         throw new JpegError('SOI not found');
       }
       fileMarker = readUint16();
-      while (fileMarker !== 0xFFD9) {
+      markerLoop: while (fileMarker !== 0xFFD9) {
         var i, j, l;
         switch (fileMarker) {
           case 0xFFE0:
@@ -672,7 +723,8 @@ var JpegImage = function JpegImageClosure() {
             frame.extended = fileMarker === 0xFFC1;
             frame.progressive = fileMarker === 0xFFC2;
             frame.precision = data[offset++];
-            frame.scanLines = readUint16();
+            var sofScanLines = readUint16();
+            frame.scanLines = dnlScanLines || sofScanLines;
             frame.samplesPerLine = readUint16();
             frame.components = [];
             frame.componentIds = {};
@@ -726,6 +778,7 @@ var JpegImage = function JpegImageClosure() {
             resetInterval = readUint16();
             break;
           case 0xFFDA:
+            var parseDNLMarker = ++numSOSMarkers === 1 && !dnlScanLines;
             readUint16();
             var selectorsCount = data[offset++];
             var components = [],
@@ -741,8 +794,22 @@ var JpegImage = function JpegImageClosure() {
             var spectralStart = data[offset++];
             var spectralEnd = data[offset++];
             var successiveApproximation = data[offset++];
-            var processed = decodeScan(data, offset, frame, components, resetInterval, spectralStart, spectralEnd, successiveApproximation >> 4, successiveApproximation & 15);
-            offset += processed;
+            try {
+              var processed = decodeScan(data, offset, frame, components, resetInterval, spectralStart, spectralEnd, successiveApproximation >> 4, successiveApproximation & 15, parseDNLMarker);
+              offset += processed;
+            } catch (ex) {
+              if (ex instanceof DNLMarkerError) {
+                (0, _util.warn)(ex.message + ' -- attempting to re-parse the JPEG image.');
+                return this.parse(data, { dnlScanLines: ex.scanLines });
+              } else if (ex instanceof EOIMarkerError) {
+                (0, _util.warn)(ex.message + ' -- ignoring the rest of the image data.');
+                break markerLoop;
+              }
+              throw ex;
+            }
+            break;
+          case 0xFFDC:
+            offset += 4;
             break;
           case 0xFFFF:
             if (data[offset] !== 0xFF) {
@@ -752,6 +819,12 @@ var JpegImage = function JpegImageClosure() {
           default:
             if (data[offset - 3] === 0xFF && data[offset - 2] >= 0xC0 && data[offset - 2] <= 0xFE) {
               offset -= 3;
+              break;
+            }
+            var nextFileMarker = findNextFileMarker(data, offset - 2);
+            if (nextFileMarker && nextFileMarker.invalid) {
+              (0, _util.warn)('JpegImage.parse - unexpected data, current marker is: ' + nextFileMarker.invalid);
+              offset = nextFileMarker.offset;
               break;
             }
             throw new JpegError('unknown marker ' + fileMarker.toString(16));
@@ -779,7 +852,9 @@ var JpegImage = function JpegImageClosure() {
       }
       this.numComponents = this.components.length;
     },
-    _getLinearizedBlockData: function getLinearizedBlockData(width, height) {
+    _getLinearizedBlockData: function _getLinearizedBlockData(width, height) {
+      var isSourcePDF = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+
       var scaleX = this.width / width,
           scaleY = this.height / height;
       var component, componentScaleX, componentScaleY, blocksPerScanline;
@@ -812,7 +887,10 @@ var JpegImage = function JpegImageClosure() {
           }
         }
       }
-      var transform = this.decodeTransform;
+      var transform = this._decodeTransform;
+      if (!isSourcePDF && numComponents === 4 && !transform) {
+        transform = new Int32Array([-256, 255, -256, 255, -256, 255, -256, 255]);
+      }
       if (transform) {
         for (i = 0; i < dataLength;) {
           for (j = 0, k = 0; j < numComponents; j++, i++, k += 2) {
@@ -822,22 +900,22 @@ var JpegImage = function JpegImageClosure() {
       }
       return data;
     },
-    _isColorConversionNeeded: function _isColorConversionNeeded() {
+
+    get _isColorConversionNeeded() {
       if (this.adobe) {
         return !!this.adobe.transformCode;
       }
       if (this.numComponents === 3) {
-        if (this.colorTransform === 0) {
+        if (this._colorTransform === 0) {
           return false;
         }
         return true;
       }
-      if (this.colorTransform === 1) {
+      if (this._colorTransform === 1) {
         return true;
       }
       return false;
     },
-
     _convertYccToRgb: function convertYccToRgb(data) {
       var Y, Cb, Cr;
       for (var i = 0, length = data.length; i < length; i += 3) {
@@ -862,7 +940,7 @@ var JpegImage = function JpegImageClosure() {
         data[offset++] = 107.268039397724 + Cb * (2.19927104525741e-5 * Cb - 0.000640992018297945 * Cr + 0.000659397001245577 * Y + 0.000426105652938837 * k - 0.176491792462875) + Cr * (-0.000778269941513683 * Cr + 0.00130872261408275 * Y + 0.000770482631801132 * k - 0.151051492775562) + Y * (0.00126935368114843 * Y - 0.00265090189010898 * k + 0.25802910206845) + k * (-0.000318913117588328 * k - 0.213742400323665);
         data[offset++] = -20.810012546947 + Cb * (-0.000570115196973677 * Cb - 2.63409051004589e-5 * Cr + 0.0020741088115012 * Y - 0.00288260236853442 * k + 0.814272968359295) + Cr * (-1.53496057440975e-5 * Cr - 0.000132689043961446 * Y + 0.000560833691242812 * k - 0.195152027534049) + Y * (0.00174418132927582 * Y - 0.00255243321439347 * k + 0.116935020465145) + k * (-0.000343531996510555 * k + 0.24165260232407);
       }
-      return data;
+      return data.subarray(0, offset);
     },
     _convertYcckToCmyk: function convertYcckToCmyk(data) {
       var Y, Cb, Cr;
@@ -889,14 +967,21 @@ var JpegImage = function JpegImageClosure() {
         data[offset++] = 255 + c * (8.841041422036149 * c + 60.118027045597366 * m + 6.871425592049007 * y + 31.159100130055922 * k - 79.2970844816548) + m * (-15.310361306967817 * m + 17.575251261109482 * y + 131.35250912493976 * k - 190.9453302588951) + y * (4.444339102852739 * y + 9.8632861493405 * k - 24.86741582555878) - k * (20.737325471181034 * k + 187.80453709719578);
         data[offset++] = 255 + c * (0.8842522430003296 * c + 8.078677503112928 * m + 30.89978309703729 * y - 0.23883238689178934 * k - 14.183576799673286) + m * (10.49593273432072 * m + 63.02378494754052 * y + 50.606957656360734 * k - 112.23884253719248) + y * (0.03296041114873217 * y + 115.60384449646641 * k - 193.58209356861505) - k * (22.33816807309886 * k + 180.12613974708367);
       }
-      return data;
+      return data.subarray(0, offset);
     },
-    getData: function getData(width, height, forceRGBoutput) {
+    getData: function getData(_ref3) {
+      var width = _ref3.width,
+          height = _ref3.height,
+          _ref3$forceRGB = _ref3.forceRGB,
+          forceRGB = _ref3$forceRGB === undefined ? false : _ref3$forceRGB,
+          _ref3$isSourcePDF = _ref3.isSourcePDF,
+          isSourcePDF = _ref3$isSourcePDF === undefined ? false : _ref3$isSourcePDF;
+
       if (this.numComponents > 4) {
         throw new JpegError('Unsupported color mode');
       }
-      var data = this._getLinearizedBlockData(width, height);
-      if (this.numComponents === 1 && forceRGBoutput) {
+      var data = this._getLinearizedBlockData(width, height, isSourcePDF);
+      if (this.numComponents === 1 && forceRGB) {
         var dataLength = data.length;
         var rgbData = new Uint8ClampedArray(dataLength * 3);
         var offset = 0;
@@ -907,15 +992,15 @@ var JpegImage = function JpegImageClosure() {
           rgbData[offset++] = grayColor;
         }
         return rgbData;
-      } else if (this.numComponents === 3 && this._isColorConversionNeeded()) {
+      } else if (this.numComponents === 3 && this._isColorConversionNeeded) {
         return this._convertYccToRgb(data);
       } else if (this.numComponents === 4) {
-        if (this._isColorConversionNeeded()) {
-          if (forceRGBoutput) {
+        if (this._isColorConversionNeeded) {
+          if (forceRGB) {
             return this._convertYcckToRgb(data);
           }
           return this._convertYcckToCmyk(data);
-        } else if (forceRGBoutput) {
+        } else if (forceRGB) {
           return this._convertCmykToRgb(data);
         }
       }

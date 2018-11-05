@@ -1,4 +1,8 @@
-/* Copyright 2017 Mozilla Foundation
+/**
+ * @licstart The following is the entire license notice for the
+ * Javascript code in this page
+ *
+ * Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,6 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @licend The above is the entire license notice for the
+ * Javascript code in this page
  */
 'use strict';
 
@@ -156,13 +163,16 @@ var ChunkedStream = function ChunkedStreamClosure() {
       var b3 = this.getByte();
       return (b0 << 24) + (b1 << 16) + (b2 << 8) + b3;
     },
-    getBytes: function ChunkedStream_getBytes(length) {
+    getBytes: function getBytes(length) {
+      var forceClamped = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+
       var bytes = this.bytes;
       var pos = this.pos;
       var strEnd = this.end;
       if (!length) {
         this.ensureRange(pos, strEnd);
-        return bytes.subarray(pos, strEnd);
+        var _subarray = bytes.subarray(pos, strEnd);
+        return forceClamped ? new Uint8ClampedArray(_subarray) : _subarray;
       }
       var end = pos + length;
       if (end > strEnd) {
@@ -170,18 +180,23 @@ var ChunkedStream = function ChunkedStreamClosure() {
       }
       this.ensureRange(pos, end);
       this.pos = end;
-      return bytes.subarray(pos, end);
+      var subarray = bytes.subarray(pos, end);
+      return forceClamped ? new Uint8ClampedArray(subarray) : subarray;
     },
+
     peekByte: function ChunkedStream_peekByte() {
       var peekedByte = this.getByte();
       this.pos--;
       return peekedByte;
     },
-    peekBytes: function ChunkedStream_peekBytes(length) {
-      var bytes = this.getBytes(length);
+    peekBytes: function peekBytes(length) {
+      var forceClamped = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+
+      var bytes = this.getBytes(length, forceClamped);
       this.pos -= bytes.length;
       return bytes;
     },
+
     getByteRange: function ChunkedStream_getBytes(begin, end) {
       this.ensureRange(begin, end);
       return this.bytes.subarray(begin, end);
@@ -349,7 +364,7 @@ var ChunkedStreamManager = function ChunkedStreamManagerClosure() {
         var beginChunk = this.getBeginChunk(ranges[i].begin);
         var endChunk = this.getEndChunk(ranges[i].end);
         for (var chunk = beginChunk; chunk < endChunk; ++chunk) {
-          if (chunksToRequest.indexOf(chunk) < 0) {
+          if (!chunksToRequest.includes(chunk)) {
             chunksToRequest.push(chunk);
           }
         }
