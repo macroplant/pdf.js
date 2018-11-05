@@ -235,7 +235,7 @@ function _fetchDocument(worker, source, pdfDataRangeTransport, docId) {
   }
   return worker.messageHandler.sendWithPromise('GetDocRequest', {
     docId: docId,
-    apiVersion: '2.0.991',
+    apiVersion: '2.0.993',
     source: {
       data: source.data,
       url: source.url,
@@ -1773,8 +1773,8 @@ var InternalRenderTask = function InternalRenderTaskClosure() {
 }();
 var version, build;
 {
-  exports.version = version = '2.0.991';
-  exports.build = build = '9f572790';
+  exports.version = version = '2.0.993';
+  exports.build = build = '6eb04e22';
 }
 exports.getDocument = getDocument;
 exports.LoopbackPort = LoopbackPort;
