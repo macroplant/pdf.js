@@ -7,9 +7,6 @@ Makefile
 node_modules/
 examples/node/svgdump/
 examples/node/pdf2png/*.png
-<<<<<<< HEAD
 
 **/*.idea
 package-lock.json
-=======
->>>>>>> master
