@@ -123,8 +123,8 @@ return /******/ (function(modules) { // webpackBootstrap
 "use strict";
 
 
-var pdfjsVersion = '2.2.213';
-var pdfjsBuild = '97f1d7e6';
+var pdfjsVersion = '2.2.215';
+var pdfjsBuild = 'aff0bdb4';
 
 var pdfjsSharedUtil = __w_pdfjs_require__(1);
 
@@ -10058,7 +10058,7 @@ function _fetchDocument(worker, source, pdfDataRangeTransport, docId) {
 
   return worker.messageHandler.sendWithPromise('GetDocRequest', {
     docId: docId,
-    apiVersion: '2.2.213',
+    apiVersion: '2.2.215',
     source: {
       data: source.data,
       url: source.url,
@@ -10351,6 +10351,11 @@ function () {
     key: "getPageLabels",
     value: function getPageLabels() {
       return this._transport.getPageLabels();
+    }
+  }, {
+    key: "getPageLabelDetails",
+    value: function getPageLabelDetails() {
+      return this._transport.getPageLabelDetails();
     }
   }, {
     key: "getPageLayout",
@@ -11814,6 +11819,11 @@ function () {
       return this.messageHandler.sendWithPromise('GetPageLabels', null);
     }
   }, {
+    key: "getPageLabelDetails",
+    value: function getPageLabelDetails() {
+      return this.messageHandler.sendWithPromise('GetPageLabelDetails', null);
+    }
+  }, {
     key: "getPageLayout",
     value: function getPageLayout() {
       return this.messageHandler.sendWithPromise('GetPageLayout', null);
@@ -12221,9 +12231,9 @@ var InternalRenderTask = function InternalRenderTaskClosure() {
   return InternalRenderTask;
 }();
 
-var version = '2.2.213';
+var version = '2.2.215';
 exports.version = version;
-var build = '97f1d7e6';
+var build = 'aff0bdb4';
 exports.build = build;
 
 /***/ }),

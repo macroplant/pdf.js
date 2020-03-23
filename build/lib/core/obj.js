@@ -262,18 +262,18 @@ function () {
 
       for (var i = 0, ii = this.numPages; i < ii; i++) {
         if (i in nums) {
-          var labelDict = nums[i];
+          var _labelDict = nums[i];
 
-          if (!(0, _primitives.isDict)(labelDict)) {
+          if (!(0, _primitives.isDict)(_labelDict)) {
             throw new _util.FormatError('PageLabel is not a dictionary.');
           }
 
-          if (labelDict.has('Type') && !(0, _primitives.isName)(labelDict.get('Type'), 'PageLabel')) {
+          if (_labelDict.has('Type') && !(0, _primitives.isName)(_labelDict.get('Type'), 'PageLabel')) {
             throw new _util.FormatError('Invalid type in PageLabel dictionary.');
           }
 
-          if (labelDict.has('S')) {
-            var s = labelDict.get('S');
+          if (_labelDict.has('S')) {
+            var s = _labelDict.get('S');
 
             if (!(0, _primitives.isName)(s)) {
               throw new _util.FormatError('Invalid style in PageLabel dictionary.');
@@ -284,8 +284,8 @@ function () {
             style = null;
           }
 
-          if (labelDict.has('P')) {
-            var p = labelDict.get('P');
+          if (_labelDict.has('P')) {
+            var p = _labelDict.get('P');
 
             if (!(0, _util.isString)(p)) {
               throw new _util.FormatError('Invalid prefix in PageLabel dictionary.');
@@ -296,8 +296,118 @@ function () {
             prefix = '';
           }
 
-          if (labelDict.has('St')) {
-            var st = labelDict.get('St');
+          if (_labelDict.has('St')) {
+            var st = _labelDict.get('St');
+
+            if (!(Number.isInteger(st) && st >= 1)) {
+              throw new _util.FormatError('Invalid start in PageLabel dictionary.');
+            }
+
+            currentIndex = st;
+          } else {
+            currentIndex = 1;
+          }
+        }
+
+        switch (style) {
+          case 'D':
+            currentLabel = currentIndex;
+            break;
+
+          case 'R':
+          case 'r':
+            currentLabel = (0, _core_utils.toRomanNumerals)(currentIndex, style === 'r');
+            break;
+
+          case 'A':
+          case 'a':
+            var LIMIT = 26;
+            var A_UPPER_CASE = 0x41,
+                A_LOWER_CASE = 0x61;
+            var baseCharCode = style === 'a' ? A_LOWER_CASE : A_UPPER_CASE;
+            var letterIndex = currentIndex - 1;
+            var character = String.fromCharCode(baseCharCode + letterIndex % LIMIT);
+            var charBuf = [];
+
+            for (var j = 0, jj = letterIndex / LIMIT | 0; j <= jj; j++) {
+              charBuf.push(character);
+            }
+
+            currentLabel = charBuf.join('');
+            break;
+
+          default:
+            if (style) {
+              throw new _util.FormatError("Invalid style \"".concat(style, "\" in PageLabel dictionary."));
+            }
+
+            currentLabel = '';
+        }
+
+        pageLabels[i] = {
+          value: prefix + currentLabel,
+          labelDict: labelDict
+        };
+        currentIndex++;
+      }
+
+      return pageLabels;
+    }
+  }, {
+    key: "_readPageLabelDetails",
+    value: function _readPageLabelDetails() {
+      var obj = this.catDict.getRaw('PageLabels');
+
+      if (!obj) {
+        return null;
+      }
+
+      var pageLabels = new Array(this.numPages);
+      var style = null,
+          prefix = '';
+      var numberTree = new NumberTree(obj, this.xref);
+      var nums = numberTree.getAll();
+      var currentLabel = '',
+          currentIndex = 1;
+
+      for (var i = 0, ii = this.numPages; i < ii; i++) {
+        if (i in nums) {
+          var _labelDict2 = nums[i];
+
+          if (!(0, _primitives.isDict)(_labelDict2)) {
+            throw new _util.FormatError('PageLabel is not a dictionary.');
+          }
+
+          if (_labelDict2.has('Type') && !(0, _primitives.isName)(_labelDict2.get('Type'), 'PageLabel')) {
+            throw new _util.FormatError('Invalid type in PageLabel dictionary.');
+          }
+
+          if (_labelDict2.has('S')) {
+            var s = _labelDict2.get('S');
+
+            if (!(0, _primitives.isName)(s)) {
+              throw new _util.FormatError('Invalid style in PageLabel dictionary.');
+            }
+
+            style = s.name;
+          } else {
+            style = null;
+          }
+
+          if (_labelDict2.has('P')) {
+            var p = _labelDict2.get('P');
+
+            if (!(0, _util.isString)(p)) {
+              throw new _util.FormatError('Invalid prefix in PageLabel dictionary.');
+            }
+
+            prefix = (0, _util.stringToPDFString)(p);
+          } else {
+            prefix = '';
+          }
+
+          if (_labelDict2.has('St')) {
+            var st = _labelDict2.get('St');
 
             if (!(Number.isInteger(st) && st >= 1)) {
               throw new _util.FormatError('Invalid start in PageLabel dictionary.');
@@ -742,6 +852,23 @@ function () {
       }
 
       return (0, _util.shadow)(this, 'pageLabels', obj);
+    }
+  }, {
+    key: "pageLabelDetails",
+    get: function get() {
+      var obj = null;
+
+      try {
+        obj = this._readPageLabelDetails();
+      } catch (ex) {
+        if (ex instanceof _core_utils.MissingDataException) {
+          throw ex;
+        }
+
+        (0, _util.warn)('Unable to read page labels.');
+      }
+
+      return (0, _util.shadow)(this, 'pageLabelDetails', obj);
     }
   }, {
     key: "pageLayout",

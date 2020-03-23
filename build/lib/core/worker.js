@@ -269,7 +269,7 @@ var WorkerMessageHandler = {
     var WorkerTasks = [];
     var verbosity = (0, _util.getVerbosityLevel)();
     var apiVersion = docParams.apiVersion;
-    var workerVersion = '2.2.213';
+    var workerVersion = '2.2.215';
 
     if (apiVersion !== workerVersion) {
       throw new Error("The API version \"".concat(apiVersion, "\" does not match ") + "the Worker version \"".concat(workerVersion, "\"."));
@@ -583,6 +583,9 @@ var WorkerMessageHandler = {
     });
     handler.on('GetPageLabels', function wphSetupGetPageLabels(data) {
       return pdfManager.ensureCatalog('pageLabels');
+    });
+    handler.on('GetPageLabelDetails', function wphSetupGetPageLabelDetails(data) {
+      return pdfManager.ensureCatalog('pageLabelDetails');
     });
     handler.on('GetPageLayout', function wphSetupGetPageLayout(data) {
       return pdfManager.ensureCatalog('pageLayout');

@@ -435,6 +435,10 @@ class PDFDocumentProxy {
     return this._transport.getPageLabels();
   }
 
+  getPageLabelDetails() {
+    return this._transport.getPageLabelDetails();
+  }
+
   getPageLayout() {
     return this._transport.getPageLayout();
   }
@@ -1745,6 +1749,10 @@ class WorkerTransport {
 
   getPageLabels() {
     return this.messageHandler.sendWithPromise('GetPageLabels', null);
+  }
+
+  getPageLabelDetails() {
+    return this.messageHandler.sendWithPromise('GetPageLabelDetails', null);
   }
 
   getPageLayout() {

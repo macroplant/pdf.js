@@ -399,7 +399,7 @@ class Catalog {
   /**
    * @private
    */
-  _readPageLabels() {
+  _readPageLabelDetails() {
     const obj = this.catDict.getRaw('PageLabels');
     if (!obj) {
       return null;
@@ -411,7 +411,7 @@ class Catalog {
     const numberTree = new NumberTree(obj, this.xref);
     const nums = numberTree.getAll();
     let currentLabel = '', currentIndex = 1;
-
+    
     for (let i = 0, ii = this.numPages; i < ii; i++) {
       if (i in nums) {
         const labelDict = nums[i];
