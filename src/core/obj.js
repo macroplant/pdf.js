@@ -286,14 +286,14 @@ class Catalog {
 
   get pageLabelDetails() {
     let obj = null;
-    try {
+    // try {
       obj = this._readPageLabelDetails();
-    } catch (ex) {
-      if (ex instanceof MissingDataException) {
-        throw ex;
-      }
-      warn('Unable to read page labels.');
-    }
+    // } catch (ex) {
+    //   if (ex instanceof MissingDataException) {
+    //     throw ex;
+    //   }
+    //   warn('Unable to read page label details.');
+    // }
     return shadow(this, 'pageLabelDetails', obj);
   }
 
@@ -410,8 +410,9 @@ class Catalog {
 
     const numberTree = new NumberTree(obj, this.xref);
     const nums = numberTree.getAll();
+    return numberTree.length;
     let currentLabel = '', currentIndex = 1;
-    
+
     for (let i = 0, ii = this.numPages; i < ii; i++) {
       if (i in nums) {
         const labelDict = nums[i];
@@ -455,38 +456,11 @@ class Catalog {
         }
       }
 
-      switch (style) {
-        case 'D':
-          currentLabel = currentIndex;
-          break;
-        case 'R':
-        case 'r':
-          currentLabel = toRomanNumerals(currentIndex, style === 'r');
-          break;
-        case 'A':
-        case 'a':
-          const LIMIT = 26; // Use only the characters A-Z, or a-z.
-          const A_UPPER_CASE = 0x41, A_LOWER_CASE = 0x61;
-
-          const baseCharCode = (style === 'a' ? A_LOWER_CASE : A_UPPER_CASE);
-          const letterIndex = currentIndex - 1;
-          const character = String.fromCharCode(baseCharCode +
-                                                (letterIndex % LIMIT));
-          const charBuf = [];
-          for (let j = 0, jj = (letterIndex / LIMIT) | 0; j <= jj; j++) {
-            charBuf.push(character);
-          }
-          currentLabel = charBuf.join('');
-          break;
-        default:
-          if (style) {
-            throw new FormatError(
-              `Invalid style "${style}" in PageLabel dictionary.`);
-          }
-          currentLabel = '';
-      }
-
-      pageLabels[i] = prefix + currentLabel;
+      pageLabels[i] = {
+        prefix: prefix,
+        firstPageNum: currentIndex,
+        style: style
+      };
       currentIndex++;
     }
     return pageLabels;

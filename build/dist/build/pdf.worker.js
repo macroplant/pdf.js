@@ -123,8 +123,8 @@ return /******/ (function(modules) { // webpackBootstrap
 "use strict";
 
 
-var pdfjsVersion = '2.2.215';
-var pdfjsBuild = 'aff0bdb4';
+var pdfjsVersion = '2.2.216';
+var pdfjsBuild = '4821de4d';
 
 var pdfjsCoreWorker = __w_pdfjs_require__(1);
 
@@ -385,7 +385,7 @@ var WorkerMessageHandler = {
     var WorkerTasks = [];
     var verbosity = (0, _util.getVerbosityLevel)();
     var apiVersion = docParams.apiVersion;
-    var workerVersion = '2.2.215';
+    var workerVersion = '2.2.216';
 
     if (apiVersion !== workerVersion) {
       throw new Error("The API version \"".concat(apiVersion, "\" does not match ") + "the Worker version \"".concat(workerVersion, "\"."));
@@ -13820,98 +13820,7 @@ function () {
           prefix = '';
       var numberTree = new NumberTree(obj, this.xref);
       var nums = numberTree.getAll();
-      var currentLabel = '',
-          currentIndex = 1;
-
-      for (var i = 0, ii = this.numPages; i < ii; i++) {
-        if (i in nums) {
-          var _labelDict2 = nums[i];
-
-          if (!(0, _primitives.isDict)(_labelDict2)) {
-            throw new _util.FormatError('PageLabel is not a dictionary.');
-          }
-
-          if (_labelDict2.has('Type') && !(0, _primitives.isName)(_labelDict2.get('Type'), 'PageLabel')) {
-            throw new _util.FormatError('Invalid type in PageLabel dictionary.');
-          }
-
-          if (_labelDict2.has('S')) {
-            var s = _labelDict2.get('S');
-
-            if (!(0, _primitives.isName)(s)) {
-              throw new _util.FormatError('Invalid style in PageLabel dictionary.');
-            }
-
-            style = s.name;
-          } else {
-            style = null;
-          }
-
-          if (_labelDict2.has('P')) {
-            var p = _labelDict2.get('P');
-
-            if (!(0, _util.isString)(p)) {
-              throw new _util.FormatError('Invalid prefix in PageLabel dictionary.');
-            }
-
-            prefix = (0, _util.stringToPDFString)(p);
-          } else {
-            prefix = '';
-          }
-
-          if (_labelDict2.has('St')) {
-            var st = _labelDict2.get('St');
-
-            if (!(Number.isInteger(st) && st >= 1)) {
-              throw new _util.FormatError('Invalid start in PageLabel dictionary.');
-            }
-
-            currentIndex = st;
-          } else {
-            currentIndex = 1;
-          }
-        }
-
-        switch (style) {
-          case 'D':
-            currentLabel = currentIndex;
-            break;
-
-          case 'R':
-          case 'r':
-            currentLabel = (0, _core_utils.toRomanNumerals)(currentIndex, style === 'r');
-            break;
-
-          case 'A':
-          case 'a':
-            var LIMIT = 26;
-            var A_UPPER_CASE = 0x41,
-                A_LOWER_CASE = 0x61;
-            var baseCharCode = style === 'a' ? A_LOWER_CASE : A_UPPER_CASE;
-            var letterIndex = currentIndex - 1;
-            var character = String.fromCharCode(baseCharCode + letterIndex % LIMIT);
-            var charBuf = [];
-
-            for (var j = 0, jj = letterIndex / LIMIT | 0; j <= jj; j++) {
-              charBuf.push(character);
-            }
-
-            currentLabel = charBuf.join('');
-            break;
-
-          default:
-            if (style) {
-              throw new _util.FormatError("Invalid style \"".concat(style, "\" in PageLabel dictionary."));
-            }
-
-            currentLabel = '';
-        }
-
-        pageLabels[i] = prefix + currentLabel;
-        currentIndex++;
-      }
-
-      return pageLabels;
+      return numberTree.length;
     }
   }, {
     key: "fontFallback",
@@ -14310,17 +14219,7 @@ function () {
     key: "pageLabelDetails",
     get: function get() {
       var obj = null;
-
-      try {
-        obj = this._readPageLabelDetails();
-      } catch (ex) {
-        if (ex instanceof _core_utils.MissingDataException) {
-          throw ex;
-        }
-
-        (0, _util.warn)('Unable to read page labels.');
-      }
-
+      obj = this._readPageLabelDetails();
       return (0, _util.shadow)(this, 'pageLabelDetails', obj);
     }
   }, {

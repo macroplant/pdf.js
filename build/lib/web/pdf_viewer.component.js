@@ -143,6 +143,6 @@ var _pdf_single_page_viewer = require("./pdf_single_page_viewer");
 
 var _pdf_viewer = require("./pdf_viewer.js");
 
-var pdfjsVersion = '2.2.215';
-var pdfjsBuild = 'aff0bdb4';
+var pdfjsVersion = '2.2.216';
+var pdfjsBuild = '4821de4d';
 (0, _ui_utils.getGlobalEventBus)(true);
