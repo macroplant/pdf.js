@@ -66,7 +66,7 @@ var COMMON_WEB_FILES = ["web/images/*.{png,svg,gif,cur}", "web/debugger.js"];
 var MOZCENTRAL_DIFF_FILE = "mozcentral.diff";
 
 var REPO = "git@github.com:mozilla/pdf.js.git";
-var DIST_REPO_URL = "https://github.com/mozilla/pdfjs-dist";
+var DIST_REPO_URL = "https://github.com/macroplant/pdf.js";
 
 var builder = require("./external/builder/builder.js");
 
@@ -1592,7 +1592,7 @@ gulp.task(
 
       rimraf.sync(DIST_DIR);
       mkdirp.sync(DIST_DIR);
-      safeSpawnSync("git", ["clone", "--depth", "1", DIST_REPO_URL, DIST_DIR]);
+      // safeSpawnSync("git", ["clone", "--depth", "1", DIST_REPO_URL, DIST_DIR]);
 
       console.log();
       console.log("### Overwriting all files");

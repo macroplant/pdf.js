@@ -65,6 +65,60 @@ function isAnnotationRenderable(annotation, intent) {
   );
 }
 
+function isAnnotationRemoved(annotationsForRemoval, annotation) {
+  if (!annotation
+    || !annotation.data.annotationType) {
+    return;
+  }
+  let data = annotation.data;
+  return annotationsForRemoval.some((itm) =>
+    (itm === data.annotationType)
+    || (itm === data.fieldType)
+    || (itm === 'STx' && data.annotationType === 20 && data.fieldType === 'Tx' && !data.multiLine)
+    || (itm === 'MTx' && data.annotationType === 20 && data.fieldType === 'Tx' && data.multiLine)
+    || (itm === 'ABtn' && data.annotationType === 20 && data.fieldType === 'Btn' && !data.radioButton && !data.checkBox)
+    || (itm === 'CBtn' && data.annotationType === 20 && data.fieldType === 'Btn' && data.checkBox)
+    || (itm === 'RBtn' && data.annotationType === 20 && data.fieldType === 'Btn' && data.radioButton)
+    || (itm === 'CCh' && data.annotationType === 20 && data.fieldType === 'Ch' && data.combo)
+    || (itm === 'LCh' && data.annotationType === 20 && data.fieldType === 'Ch' && !data.combo)
+  );
+  // return annotationsForRemoval.some((itm) => {
+  //     if (itm === data.annotationType || itm === data.fieldType) {
+  //       return true
+  //     } else if (data.annotationType === 20 && data.fieldType === 'Tx') {
+  //       switch (itm) {
+  //         case 'STx':
+  //           return !data.multiLine;
+  //         case 'MTx':
+  //           return data.multiLine;
+  //         default:
+  //           return false;
+  //       }
+  //     } else if (data.annotationType === 20 && data.fieldType === 'Btn') {
+  //       switch (itm) {
+  //         case 'ABtn':
+  //           return !data.radioButton && !data.checkBox;
+  //         case 'CBtn':
+  //           return data.checkBox;
+  //         case 'RBtn':
+  //           return data.radioButton;
+  //         default:
+  //           return false;
+  //       }
+  //     } else if (data.annotationType === 20 && data.fieldType === 'Ch') {
+  //       switch (itm) {
+  //         case 'CCh':
+  //           return data.combo;
+  //         case 'LCh':
+  //           return !data.combo;
+  //         default:
+  //           return false;
+  //       }
+  //     }
+  //   }
+  // );
+}
+
 class Page {
   constructor({
     pdfManager,
@@ -240,7 +294,7 @@ class Page {
     });
   }
 
-  getOperatorList({ handler, sink, task, intent, renderInteractiveForms }) {
+  getOperatorList({ handler, sink, task, intent, renderInteractiveForms, annotationsNotRendered, }) {
     const contentStreamPromise = this.pdfManager.ensure(
       this,
       "getContentStream"
@@ -300,7 +354,10 @@ class Page {
         // is resolved with the complete operator list for a single annotation.
         const opListPromises = [];
         for (const annotation of annotations) {
-          if (isAnnotationRenderable(annotation, intent)) {
+          if (Array.isArray(annotationsNotRendered)
+            && isAnnotationRemoved(annotationsNotRendered, annotation)) {
+            continue;
+          } else if (isAnnotationRenderable(annotation, intent)) {
             opListPromises.push(
               annotation.getOperatorList(
                 partialEvaluator,
