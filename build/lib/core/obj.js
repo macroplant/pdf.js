@@ -367,7 +367,67 @@ function () {
           prefix = '';
       var numberTree = new NumberTree(obj, this.xref);
       var nums = numberTree.getAll();
-      return numberTree.length;
+      var currentLabel = '',
+          currentIndex = 1;
+
+      for (var i = 0, ii = this.numPages; i < ii; i++) {
+        if (i in nums) {
+          var _labelDict2 = nums[i];
+
+          if (!(0, _primitives.isDict)(_labelDict2)) {
+            throw new _util.FormatError('PageLabel is not a dictionary.');
+          }
+
+          if (_labelDict2.has('Type') && !(0, _primitives.isName)(_labelDict2.get('Type'), 'PageLabel')) {
+            throw new _util.FormatError('Invalid type in PageLabel dictionary.');
+          }
+
+          if (_labelDict2.has('S')) {
+            var s = _labelDict2.get('S');
+
+            if (!(0, _primitives.isName)(s)) {
+              throw new _util.FormatError('Invalid style in PageLabel dictionary.');
+            }
+
+            style = s.name;
+          } else {
+            style = null;
+          }
+
+          if (_labelDict2.has('P')) {
+            var p = _labelDict2.get('P');
+
+            if (!(0, _util.isString)(p)) {
+              throw new _util.FormatError('Invalid prefix in PageLabel dictionary.');
+            }
+
+            prefix = (0, _util.stringToPDFString)(p);
+          } else {
+            prefix = '';
+          }
+
+          if (_labelDict2.has('St')) {
+            var st = _labelDict2.get('St');
+
+            if (!(Number.isInteger(st) && st >= 1)) {
+              throw new _util.FormatError('Invalid start in PageLabel dictionary.');
+            }
+
+            currentIndex = st;
+          } else {
+            currentIndex = 1;
+          }
+        }
+
+        pageLabels[i] = {
+          prefix: prefix,
+          firstPageNum: currentIndex,
+          style: style
+        };
+        currentIndex++;
+      }
+
+      return pageLabels;
     }
   }, {
     key: "fontFallback",
@@ -766,7 +826,17 @@ function () {
     key: "pageLabelDetails",
     get: function get() {
       var obj = null;
-      obj = this._readPageLabelDetails();
+
+      try {
+        obj = this._readPageLabelDetails();
+      } catch (ex) {
+        if (ex instanceof _core_utils.MissingDataException) {
+          throw ex;
+        }
+
+        (0, _util.warn)('Unable to read page label details.');
+      }
+
       return (0, _util.shadow)(this, 'pageLabelDetails', obj);
     }
   }, {

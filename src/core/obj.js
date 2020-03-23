@@ -286,14 +286,14 @@ class Catalog {
 
   get pageLabelDetails() {
     let obj = null;
-    // try {
+    try {
       obj = this._readPageLabelDetails();
-    // } catch (ex) {
-    //   if (ex instanceof MissingDataException) {
-    //     throw ex;
-    //   }
-    //   warn('Unable to read page label details.');
-    // }
+    } catch (ex) {
+      if (ex instanceof MissingDataException) {
+        throw ex;
+      }
+      warn('Unable to read page label details.');
+    }
     return shadow(this, 'pageLabelDetails', obj);
   }
 
@@ -410,7 +410,6 @@ class Catalog {
 
     const numberTree = new NumberTree(obj, this.xref);
     const nums = numberTree.getAll();
-    return numberTree.length;
     let currentLabel = '', currentIndex = 1;
 
     for (let i = 0, ii = this.numPages; i < ii; i++) {

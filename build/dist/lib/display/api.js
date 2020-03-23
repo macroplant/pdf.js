@@ -311,7 +311,7 @@ function _fetchDocument(worker, source, pdfDataRangeTransport, docId) {
 
   return worker.messageHandler.sendWithPromise('GetDocRequest', {
     docId: docId,
-    apiVersion: '2.2.216',
+    apiVersion: '2.2.217',
     source: {
       data: source.data,
       url: source.url,
@@ -2484,7 +2484,7 @@ var InternalRenderTask = function InternalRenderTaskClosure() {
   return InternalRenderTask;
 }();
 
-var version = '2.2.216';
+var version = '2.2.217';
 exports.version = version;
-var build = '4821de4d';
+var build = '1266af03';
 exports.build = build;
