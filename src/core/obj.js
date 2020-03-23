@@ -283,6 +283,119 @@ class Catalog {
     return shadow(this, 'pageLabels', obj);
   }
 
+
+  get pageLabelDetails() {
+    let obj = null;
+    try {
+      obj = this._readPageLabelDetails();
+    } catch (ex) {
+      if (ex instanceof MissingDataException) {
+        throw ex;
+      }
+      warn('Unable to read page labels.');
+    }
+    return shadow(this, 'pageLabelDetails', obj);
+  }
+
+  /**
+   * @private
+   */
+  _readPageLabels() {
+    const obj = this.catDict.getRaw('PageLabels');
+    if (!obj) {
+      return null;
+    }
+
+    const pageLabels = new Array(this.numPages);
+    let style = null, prefix = '';
+
+    const numberTree = new NumberTree(obj, this.xref);
+    const nums = numberTree.getAll();
+    let currentLabel = '', currentIndex = 1;
+
+    for (let i = 0, ii = this.numPages; i < ii; i++) {
+      if (i in nums) {
+        const labelDict = nums[i];
+        if (!isDict(labelDict)) {
+          throw new FormatError('PageLabel is not a dictionary.');
+        }
+
+        if (labelDict.has('Type') &&
+            !isName(labelDict.get('Type'), 'PageLabel')) {
+          throw new FormatError('Invalid type in PageLabel dictionary.');
+        }
+
+        if (labelDict.has('S')) {
+          const s = labelDict.get('S');
+          if (!isName(s)) {
+            throw new FormatError('Invalid style in PageLabel dictionary.');
+          }
+          style = s.name;
+        } else {
+          style = null;
+        }
+
+        if (labelDict.has('P')) {
+          const p = labelDict.get('P');
+          if (!isString(p)) {
+            throw new FormatError('Invalid prefix in PageLabel dictionary.');
+          }
+          prefix = stringToPDFString(p);
+        } else {
+          prefix = '';
+        }
+
+        if (labelDict.has('St')) {
+          const st = labelDict.get('St');
+          if (!(Number.isInteger(st) && st >= 1)) {
+            throw new FormatError('Invalid start in PageLabel dictionary.');
+          }
+          currentIndex = st;
+        } else {
+          currentIndex = 1;
+        }
+      }
+
+      switch (style) {
+        case 'D':
+          currentLabel = currentIndex;
+          break;
+        case 'R':
+        case 'r':
+          currentLabel = toRomanNumerals(currentIndex, style === 'r');
+          break;
+        case 'A':
+        case 'a':
+          const LIMIT = 26; // Use only the characters A-Z, or a-z.
+          const A_UPPER_CASE = 0x41, A_LOWER_CASE = 0x61;
+
+          const baseCharCode = (style === 'a' ? A_LOWER_CASE : A_UPPER_CASE);
+          const letterIndex = currentIndex - 1;
+          const character = String.fromCharCode(baseCharCode +
+                                                (letterIndex % LIMIT));
+          const charBuf = [];
+          for (let j = 0, jj = (letterIndex / LIMIT) | 0; j <= jj; j++) {
+            charBuf.push(character);
+          }
+          currentLabel = charBuf.join('');
+          break;
+        default:
+          if (style) {
+            throw new FormatError(
+              `Invalid style "${style}" in PageLabel dictionary.`);
+          }
+          currentLabel = '';
+      }
+
+      pageLabels[i] = {
+        value: prefix + currentLabel,
+        labelDict: labelDict
+      };
+      currentIndex++;
+    }
+    return pageLabels;
+  }
+
   /**
    * @private
    */

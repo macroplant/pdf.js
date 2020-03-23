@@ -517,6 +517,12 @@ var WorkerMessageHandler = {
       }
     );
 
+    handler.on('GetPageLabelDetails',
+      function wphSetupGetPageLabelDetails(data) {
+        return pdfManager.ensureCatalog('pageLabelDetails');
+      }
+    );
+
     handler.on('GetPageLayout', function wphSetupGetPageLayout(data) {
       return pdfManager.ensureCatalog('pageLayout');
     });
