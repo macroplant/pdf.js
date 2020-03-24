@@ -123,8 +123,8 @@ return /******/ (function(modules) { // webpackBootstrap
 "use strict";
 
 
-var pdfjsVersion = '2.2.217';
-var pdfjsBuild = '1266af03';
+var pdfjsVersion = '2.2.222';
+var pdfjsBuild = '0e383eb6';
 
 var pdfjsCoreWorker = __w_pdfjs_require__(1);
 
@@ -385,7 +385,7 @@ var WorkerMessageHandler = {
     var WorkerTasks = [];
     var verbosity = (0, _util.getVerbosityLevel)();
     var apiVersion = docParams.apiVersion;
-    var workerVersion = '2.2.217';
+    var workerVersion = '2.2.222';
 
     if (apiVersion !== workerVersion) {
       throw new Error("The API version \"".concat(apiVersion, "\" does not match ") + "the Worker version \"".concat(workerVersion, "\"."));
@@ -13820,8 +13820,7 @@ function () {
           prefix = '';
       var numberTree = new NumberTree(obj, this.xref);
       var nums = numberTree.getAll();
-      var currentLabel = '',
-          currentIndex = 1;
+      var currentIndex = 1;
 
       for (var i = 0, ii = this.numPages; i < ii; i++) {
         if (i in nums) {
@@ -13842,9 +13841,15 @@ function () {
               throw new _util.FormatError('Invalid style in PageLabel dictionary.');
             }
 
-            style = s.name;
+            style = {
+              'D': 'decimal_arabic',
+              'R': 'uppercase_roman',
+              'r': 'lowercase_roman',
+              'A': 'uppercase_latin',
+              'a': 'lowercase_latin'
+            }[s];
           } else {
-            style = null;
+            style = 'no_style';
           }
 
           if (_labelDict2.has('P')) {
@@ -13873,8 +13878,8 @@ function () {
         }
 
         pageLabels[i] = {
-          prefix: prefix,
           firstPageNum: currentIndex,
+          prefix: prefix,
           style: style
         };
         currentIndex++;

@@ -367,8 +367,7 @@ function () {
           prefix = '';
       var numberTree = new NumberTree(obj, this.xref);
       var nums = numberTree.getAll();
-      var currentLabel = '',
-          currentIndex = 1;
+      var currentIndex = 1;
 
       for (var i = 0, ii = this.numPages; i < ii; i++) {
         if (i in nums) {
@@ -389,9 +388,15 @@ function () {
               throw new _util.FormatError('Invalid style in PageLabel dictionary.');
             }
 
-            style = s.name;
+            style = {
+              'D': 'decimal_arabic',
+              'R': 'uppercase_roman',
+              'r': 'lowercase_roman',
+              'A': 'uppercase_latin',
+              'a': 'lowercase_latin'
+            }[s];
           } else {
-            style = null;
+            style = 'no_style';
           }
 
           if (_labelDict2.has('P')) {
@@ -420,8 +425,8 @@ function () {
         }
 
         pageLabels[i] = {
-          prefix: prefix,
           firstPageNum: currentIndex,
+          prefix: prefix,
           style: style
         };
         currentIndex++;

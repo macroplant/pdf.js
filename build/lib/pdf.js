@@ -21,8 +21,8 @@
  */
 'use strict';
 
-var pdfjsVersion = '2.2.217';
-var pdfjsBuild = '1266af03';
+var pdfjsVersion = '2.2.222';
+var pdfjsBuild = '0e383eb6';
 
 var pdfjsSharedUtil = require('./shared/util.js');
 

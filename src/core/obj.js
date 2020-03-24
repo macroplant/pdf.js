@@ -410,7 +410,7 @@ class Catalog {
 
     const numberTree = new NumberTree(obj, this.xref);
     const nums = numberTree.getAll();
-    let currentLabel = '', currentIndex = 1;
+    let currentIndex = 1;
 
     for (let i = 0, ii = this.numPages; i < ii; i++) {
       if (i in nums) {
@@ -429,9 +429,15 @@ class Catalog {
           if (!isName(s)) {
             throw new FormatError('Invalid style in PageLabel dictionary.');
           }
-          style = s.name;
+          style = {
+            'D': 'decimal_arabic',
+            'R': 'uppercase_roman',
+            'r': 'lowercase_roman',
+            'A': 'uppercase_latin',
+            'a': 'lowercase_latin'
+          }[s]
         } else {
-          style = null;
+          style = 'no_style';
         }
 
         if (labelDict.has('P')) {
@@ -456,8 +462,8 @@ class Catalog {
       }
 
       pageLabels[i] = {
-        prefix: prefix,
         firstPageNum: currentIndex,
+        prefix: prefix,
         style: style
       };
       currentIndex++;
