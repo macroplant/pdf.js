@@ -125,9 +125,8 @@ function () {
           blackColor = new Uint8ClampedArray(3);
 
       while (queue.length > 0) {
-        var _i = queue.shift();
-
-        var outlineDict = xref.fetchIfRef(_i.obj);
+        var i = queue.shift();
+        var outlineDict = xref.fetchIfRef(i.obj);
 
         if (outlineDict === null) {
           continue;
@@ -168,9 +167,7 @@ function () {
           italic: !!(flags & 1),
           items: []
         };
-
-        _i.parent.items.push(outlineItem);
-
+        i.parent.items.push(outlineItem);
         obj = outlineDict.getRaw('First');
 
         if ((0, _primitives.isRef)(obj) && !processed.has(obj)) {
@@ -186,7 +183,7 @@ function () {
         if ((0, _primitives.isRef)(obj) && !processed.has(obj)) {
           queue.push({
             obj: obj,
-            parent: _i.parent
+            parent: i.parent
           });
           processed.put(obj);
         }
@@ -263,9 +260,9 @@ function () {
       var currentLabel = '',
           currentIndex = 1;
 
-      for (var _i2 = 0, ii = this.numPages; _i2 < ii; _i2++) {
-        if (_i2 in nums) {
-          var _labelDict = nums[_i2];
+      for (var i = 0, ii = this.numPages; i < ii; i++) {
+        if (i in nums) {
+          var _labelDict = nums[i];
 
           if (!(0, _primitives.isDict)(_labelDict)) {
             throw new _util.FormatError('PageLabel is not a dictionary.');
@@ -347,7 +344,7 @@ function () {
             currentLabel = '';
         }
 
-        pageLabels[_i2] = {
+        pageLabels[i] = {
           value: prefix + currentLabel,
           labelDict: labelDict
         };
@@ -370,57 +367,64 @@ function () {
           prefix = '';
       var numberTree = new NumberTree(obj, this.xref);
       var nums = numberTree.getAll();
+      var currentLabel = '',
+          currentIndex = 1;
 
-      for (var _labelDict2 in nums) {
-        if (!(0, _primitives.isDict)(_labelDict2)) {
-          throw new _util.FormatError('PageLabel is not a dictionary.');
-        }
+      for (var i = 0, ii = this.numPages; i < ii; i++) {
+        if (i in nums) {
+          var _labelDict2 = nums[i];
 
-        if (_labelDict2.has('Type') && !(0, _primitives.isName)(_labelDict2.get('Type'), 'PageLabel')) {
-          throw new _util.FormatError('Invalid type in PageLabel dictionary.');
-        }
-
-        if (_labelDict2.has('S')) {
-          var s = _labelDict2.get('S');
-
-          if (!(0, _primitives.isName)(s)) {
-            throw new _util.FormatError('Invalid style in PageLabel dictionary.');
+          if (!(0, _primitives.isDict)(_labelDict2)) {
+            throw new _util.FormatError('PageLabel is not a dictionary.');
           }
 
-          style = {
-            'D': 'decimal_arabic',
-            'R': 'uppercase_roman',
-            'r': 'lowercase_roman',
-            'A': 'uppercase_latin',
-            'a': 'lowercase_latin'
-          }[s.name];
-        }
-
-        if (_labelDict2.has('P')) {
-          var p = _labelDict2.get('P');
-
-          if (!(0, _util.isString)(p)) {
-            throw new _util.FormatError('Invalid prefix in PageLabel dictionary.');
+          if (_labelDict2.has('Type') && !(0, _primitives.isName)(_labelDict2.get('Type'), 'PageLabel')) {
+            throw new _util.FormatError('Invalid type in PageLabel dictionary.');
           }
 
-          prefix = (0, _util.stringToPDFString)(p);
-        }
+          if (_labelDict2.has('S')) {
+            var s = _labelDict2.get('S');
 
-        if (_labelDict2.has('St')) {
-          var st = _labelDict2.get('St');
+            if (!(0, _primitives.isName)(s)) {
+              throw new _util.FormatError('Invalid style in PageLabel dictionary.');
+            }
 
-          if (!(Number.isInteger(st) && st >= 1)) {
-            throw new _util.FormatError('Invalid start in PageLabel dictionary.');
+            style = s.name;
+          } else {
+            style = null;
           }
 
-          firstPageNum = st;
+          if (_labelDict2.has('P')) {
+            var p = _labelDict2.get('P');
+
+            if (!(0, _util.isString)(p)) {
+              throw new _util.FormatError('Invalid prefix in PageLabel dictionary.');
+            }
+
+            prefix = (0, _util.stringToPDFString)(p);
+          } else {
+            prefix = '';
+          }
+
+          if (_labelDict2.has('St')) {
+            var st = _labelDict2.get('St');
+
+            if (!(Number.isInteger(st) && st >= 1)) {
+              throw new _util.FormatError('Invalid start in PageLabel dictionary.');
+            }
+
+            currentIndex = st;
+          } else {
+            currentIndex = 1;
+          }
         }
 
         pageLabels[i] = {
-          prefix: prefix || '',
-          firstPageNum: firstPageNum || 1,
-          style: style || 'no_style'
+          prefix: prefix,
+          firstPageNum: currentIndex,
+          style: style
         };
+        currentIndex++;
       }
 
       return pageLabels;
@@ -474,8 +478,8 @@ function () {
         promises.push(promise);
       });
       return Promise.all(promises).then(function (translatedFonts) {
-        for (var _i3 = 0, ii = translatedFonts.length; _i3 < ii; _i3++) {
-          var font = translatedFonts[_i3].dict;
+        for (var i = 0, ii = translatedFonts.length; i < ii; i++) {
+          var font = translatedFonts[i].dict;
           delete font.translated;
         }
 
@@ -637,8 +641,8 @@ function () {
           var kidPromises = [];
           var found = false;
 
-          for (var _i4 = 0, ii = kids.length; _i4 < ii; _i4++) {
-            var kid = kids[_i4];
+          for (var i = 0, ii = kids.length; i < ii; i++) {
+            var kid = kids[i];
 
             if (!(0, _primitives.isRef)(kid)) {
               throw new _util.FormatError('Kid must be a reference.');
@@ -2147,8 +2151,8 @@ function () {
         if (obj.has('Kids')) {
           var kids = obj.get('Kids');
 
-          for (var _i5 = 0, ii = kids.length; _i5 < ii; _i5++) {
-            var kid = kids[_i5];
+          for (var i = 0, ii = kids.length; i < ii; i++) {
+            var kid = kids[i];
 
             if (processed.has(kid)) {
               throw new _util.FormatError("Duplicate entry in \"".concat(this._type, "\" tree."));
@@ -2164,8 +2168,8 @@ function () {
         var entries = obj.get(this._type);
 
         if (Array.isArray(entries)) {
-          for (var _i6 = 0, _ii = entries.length; _i6 < _ii; _i6 += 2) {
-            dict[xref.fetchIfRef(entries[_i6])] = xref.fetchIfRef(entries[_i6 + 1]);
+          for (var _i2 = 0, _ii = entries.length; _i2 < _ii; _i2 += 2) {
+            dict[xref.fetchIfRef(entries[_i2])] = xref.fetchIfRef(entries[_i2 + 1]);
           }
         }
       }
@@ -2390,16 +2394,16 @@ var ObjectLoader = function () {
       var dict = (0, _primitives.isDict)(node) ? node : node.dict;
       var dictKeys = dict.getKeys();
 
-      for (var _i7 = 0, ii = dictKeys.length; _i7 < ii; _i7++) {
-        var rawValue = dict.getRaw(dictKeys[_i7]);
+      for (var i = 0, ii = dictKeys.length; i < ii; i++) {
+        var rawValue = dict.getRaw(dictKeys[i]);
 
         if (mayHaveChildren(rawValue)) {
           nodesToVisit.push(rawValue);
         }
       }
     } else if (Array.isArray(node)) {
-      for (var _i8 = 0, _ii2 = node.length; _i8 < _ii2; _i8++) {
-        var value = node[_i8];
+      for (var _i3 = 0, _ii2 = node.length; _i3 < _ii2; _i3++) {
+        var value = node[_i3];
 
         if (mayHaveChildren(value)) {
           nodesToVisit.push(value);
@@ -2430,8 +2434,8 @@ var ObjectLoader = function () {
       this.refSet = new _primitives.RefSet();
       var nodesToVisit = [];
 
-      for (var _i9 = 0, ii = keys.length; _i9 < ii; _i9++) {
-        var rawValue = dict.getRaw(keys[_i9]);
+      for (var i = 0, ii = keys.length; i < ii; i++) {
+        var rawValue = dict.getRaw(keys[i]);
 
         if (rawValue !== undefined) {
           nodesToVisit.push(rawValue);
@@ -2476,8 +2480,8 @@ var ObjectLoader = function () {
           var baseStreams = currentNode.getBaseStreams();
           var foundMissingData = false;
 
-          for (var _i10 = 0, ii = baseStreams.length; _i10 < ii; _i10++) {
-            var stream = baseStreams[_i10];
+          for (var i = 0, ii = baseStreams.length; i < ii; i++) {
+            var stream = baseStreams[i];
 
             if (stream.getMissingChunks && stream.getMissingChunks().length) {
               foundMissingData = true;
@@ -2498,8 +2502,8 @@ var ObjectLoader = function () {
 
       if (pendingRequests.length) {
         this.xref.stream.manager.requestRanges(pendingRequests).then(function () {
-          for (var _i11 = 0, _ii3 = nodesToRevisit.length; _i11 < _ii3; _i11++) {
-            var node = nodesToRevisit[_i11];
+          for (var _i4 = 0, _ii3 = nodesToRevisit.length; _i4 < _ii3; _i4++) {
+            var node = nodesToRevisit[_i4];
 
             if ((0, _primitives.isRef)(node)) {
               _this3.refSet.remove(node);

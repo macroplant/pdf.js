@@ -410,51 +410,57 @@ class Catalog {
 
     const numberTree = new NumberTree(obj, this.xref);
     const nums = numberTree.getAll();
+    let currentLabel = '', currentIndex = 1;
 
-    for (const labelDict in nums) {
-      if (!isDict(labelDict)) {
-        throw new FormatError('PageLabel is not a dictionary.');
-      }
-
-      if (labelDict.has('Type') && !isName(labelDict.get('Type'), 'PageLabel')) {
-        throw new FormatError('Invalid type in PageLabel dictionary.');
-      }
-
-      if (labelDict.has('S')) {
-        const s = labelDict.get('S');
-        if (!isName(s)) {
-          throw new FormatError('Invalid style in PageLabel dictionary.');
+    for (let i = 0, ii = this.numPages; i < ii; i++) {
+      if (i in nums) {
+        const labelDict = nums[i];
+        if (!isDict(labelDict)) {
+          throw new FormatError('PageLabel is not a dictionary.');
         }
-        style = {
-          'D': 'decimal_arabic',
-          'R': 'uppercase_roman',
-          'r': 'lowercase_roman',
-          'A': 'uppercase_latin',
-          'a': 'lowercase_latin'
-        }[s.name];
-      }
 
-      if (labelDict.has('P')) {
-        const p = labelDict.get('P');
-        if (!isString(p)) {
-          throw new FormatError('Invalid prefix in PageLabel dictionary.');
+        if (labelDict.has('Type') &&
+            !isName(labelDict.get('Type'), 'PageLabel')) {
+          throw new FormatError('Invalid type in PageLabel dictionary.');
         }
-        prefix = stringToPDFString(p);
-      }
 
-      if (labelDict.has('St')) {
-        const st = labelDict.get('St');
-        if (!(Number.isInteger(st) && st >= 1)) {
-          throw new FormatError('Invalid start in PageLabel dictionary.');
+        if (labelDict.has('S')) {
+          const s = labelDict.get('S');
+          if (!isName(s)) {
+            throw new FormatError('Invalid style in PageLabel dictionary.');
+          }
+          style = s.name;
+        } else {
+          style = null;
         }
-        firstPageNum = st;
+
+        if (labelDict.has('P')) {
+          const p = labelDict.get('P');
+          if (!isString(p)) {
+            throw new FormatError('Invalid prefix in PageLabel dictionary.');
+          }
+          prefix = stringToPDFString(p);
+        } else {
+          prefix = '';
+        }
+
+        if (labelDict.has('St')) {
+          const st = labelDict.get('St');
+          if (!(Number.isInteger(st) && st >= 1)) {
+            throw new FormatError('Invalid start in PageLabel dictionary.');
+          }
+          currentIndex = st;
+        } else {
+          currentIndex = 1;
+        }
       }
 
       pageLabels[i] = {
-        prefix: prefix || '',
-        firstPageNum: firstPageNum || 1,
-        style: style || 'no_style'
+        prefix: prefix,
+        firstPageNum: currentIndex,
+        style: style
       };
+      currentIndex++;
     }
     return pageLabels;
   }
