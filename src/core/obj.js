@@ -450,11 +450,11 @@ class Catalog {
         firstPageNum = st;
       }
 
-      pageLabels.push({
+      pageLabels[i] = {
         prefix: prefix || '',
         firstPageNum: firstPageNum || 1,
         style: style || 'no_style'
-      });
+      };
     }
     return pageLabels;
   }
