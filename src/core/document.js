@@ -58,11 +58,41 @@ import { PDFFunctionFactory } from "./function.js";
 const DEFAULT_USER_UNIT = 1.0;
 const LETTER_SIZE_MEDIABOX = [0, 0, 612, 792];
 
-function isAnnotationRenderable(annotation, intent) {
+function isAnnotationRenderable(annotation, intent, annotationsNotRendered=[]) {
   return (
     (intent === "display" && annotation.viewable) ||
     (intent === "print" && annotation.printable)
-  );
+  ) && !isAnnotationNotRendered(annotation, annotationsNotRendered);
+}
+
+function isAnnotationNotRendered(annotation, annotationsNotRendered) {
+  if (!annotation
+    || !annotation.data
+    || !annotation.data.annotationType
+    || !Array.isArray(annotationsNotRendered)) {
+    return false;
+  }
+  let data = annotation.data;
+  return annotationsNotRendered.some((itm) => {
+    if (typeof itm === 'object') {
+      console.log("isAnnotationRemoved object", itm, data);
+      if (Object.keys(itm).length == 0) {return false;}
+      let remove = true;
+      for (const k in itm) {
+        if (!data.hasOwnProperty(k)
+          || typeof data[k] === 'function'
+          || typeof itm[k] === 'function') {
+          remove = false;
+        } else if (remove) {
+          remove = (data[k] === itm[k]);
+        }
+      }
+      console.log("isAnnotationRemoved object remove", remove);
+      return remove;
+    } else if (typeof itm === 'number') {
+      return itm === data.annotationType;
+    }
+  });
 }
 
 class Page {
@@ -240,7 +270,7 @@ class Page {
     });
   }
 
-  getOperatorList({ handler, sink, task, intent, renderInteractiveForms }) {
+  getOperatorList({ handler, sink, task, intent, renderInteractiveForms, annotationsNotRendered }) {
     const contentStreamPromise = this.pdfManager.ensure(
       this,
       "getContentStream"
@@ -300,7 +330,7 @@ class Page {
         // is resolved with the complete operator list for a single annotation.
         const opListPromises = [];
         for (const annotation of annotations) {
-          if (isAnnotationRenderable(annotation, intent)) {
+          if (isAnnotationRenderable(annotation, intent, annotationsNotRendered)) {
             opListPromises.push(
               annotation.getOperatorList(
                 partialEvaluator,

@@ -832,6 +832,8 @@ class PDFDocumentProxy {
  * @typedef {Object} TextContent
  * @property {array} items - array of {@link TextItem}
  * @property {Object} styles - {@link TextStyle} objects, indexed by font name.
+ * @property {Array} annotationsNotRendered - (optional) annotations not
+ *                   rendered during page rendering.
  */
 
 /**
@@ -1023,6 +1025,7 @@ class PDFPageProxy {
     imageLayer = null,
     canvasFactory = null,
     background = null,
+    annotationsNotRendered = [],
   }) {
     if (this._stats) {
       this._stats.time("Overall");
@@ -1066,6 +1069,7 @@ class PDFPageProxy {
         pageIndex: this._pageIndex,
         intent: renderingIntent,
         renderInteractiveForms: renderInteractiveForms === true,
+        annotationsNotRendered: annotationsNotRendered,
       });
     }
 
