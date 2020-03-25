@@ -642,6 +642,9 @@ class PDFDocumentProxy {
   getPageLabels() {
     return this._transport.getPageLabels();
   }
+  getPageLabelDetails() {
+    return this._transport.getPageLabelDetails();
+  }
 
   /**
    * @returns {Promise} A promise that is resolved with a {string} containing
@@ -2514,6 +2517,9 @@ class WorkerTransport {
 
   getPageLabels() {
     return this.messageHandler.sendWithPromise("GetPageLabels", null);
+  }
+  getPageLabelDetails() {
+    return this.messageHandler.sendWithPromise('GetPageLabelDetails', null);
   }
 
   getPageLayout() {

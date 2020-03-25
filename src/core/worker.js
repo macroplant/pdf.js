@@ -446,8 +446,14 @@ var WorkerMessageHandler = {
       return pdfManager.ensureCatalog("pageLabels");
     });
 
-    handler.on("GetPageLayout", function wphSetupGetPageLayout(data) {
-      return pdfManager.ensureCatalog("pageLayout");
+    handler.on('GetPageLabelDetails',
+      function wphSetupGetPageLabelDetails(data) {
+        return pdfManager.ensureCatalog('pageLabelDetails');
+      }
+    );
+
+    handler.on('GetPageLayout', function wphSetupGetPageLayout(data) {
+      return pdfManager.ensureCatalog('pageLayout');
     });
 
     handler.on("GetPageMode", function wphSetupGetPageMode(data) {
