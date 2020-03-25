@@ -440,6 +440,7 @@ class Catalog {
    */
   _readPageLabelDetails() {
     const obj = this.catDict.getRaw('PageLabels');
+
     if (!obj) {
       return null;
     }
@@ -474,7 +475,7 @@ class Catalog {
             'r': 'lowercase_roman',
             'A': 'uppercase_latin',
             'a': 'lowercase_latin'
-          }[s]
+          }[s.name]
         } else {
           style = 'no_style';
         }
