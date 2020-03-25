@@ -43,7 +43,7 @@ var Vinyl = require("vinyl");
 var vfs = require("vinyl-fs");
 var through = require("through2");
 
-var BUILD_DIR = "build/";
+var BUILD_DIR = "../pdfjs-dist/build/";
 var L10N_DIR = "l10n/";
 var TEST_DIR = "test/";
 var EXTENSION_SRC_DIR = "extensions/";
