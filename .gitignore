@@ -1,6 +1,7 @@
 *~
 local.mk
 tags
+build/
 .DS_Store
 Makefile
 node_modules/
