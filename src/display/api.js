@@ -835,8 +835,6 @@ class PDFDocumentProxy {
  * @typedef {Object} TextContent
  * @property {array} items - array of {@link TextItem}
  * @property {Object} styles - {@link TextStyle} objects, indexed by font name.
- * @property {Array} annotationsNotRendered - (optional) annotations not
- *                    rendered during page rendering.
  */
 
 /**
