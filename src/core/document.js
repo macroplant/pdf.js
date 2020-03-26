@@ -65,6 +65,37 @@ function isAnnotationRenderable(annotation, intent) {
   );
 }
 
+function isAnnotationNotRendered(annotation, annotationsNotRendered) {
+  if (!annotation
+    || !annotation.data
+    || !annotation.data.annotationType
+    || !Array.isArray(annotationsNotRendered)
+    || annotationsNotRendered.length == 0) {
+    return false;
+  }
+  let data = annotation.data;
+  return annotationsNotRendered.some((itm) => {
+    if (typeof itm === 'object') {
+      if (Object.keys(itm).length == 0) {return false;}
+      let remove = true;
+      for (const k in itm) {
+        if (!remove) {
+          continue;
+        } else if (!data.hasOwnProperty(k)
+          || typeof data[k] === 'function'
+          || typeof itm[k] === 'function') {
+          remove = false;
+        } else if (remove) {
+          remove = (data[k] === itm[k]);
+        }
+      }
+      return remove;
+    } else if (typeof itm === 'number') {
+      return itm === data.annotationType;
+    }
+  });
+}
+
 class Page {
   constructor({
     pdfManager,
@@ -240,7 +271,7 @@ class Page {
     });
   }
 
-  getOperatorList({ handler, sink, task, intent, renderInteractiveForms }) {
+  getOperatorList({ handler, sink, task, intent, renderInteractiveForms, annotationsNotRendered, }) {
     const contentStreamPromise = this.pdfManager.ensure(
       this,
       "getContentStream"
@@ -300,7 +331,8 @@ class Page {
         // is resolved with the complete operator list for a single annotation.
         const opListPromises = [];
         for (const annotation of annotations) {
-          if (isAnnotationRenderable(annotation, intent)) {
+          if (isAnnotationRenderable(annotation, intent) &&
+            !isAnnotationNotRendered(annotation, annotationsNotRendered)) {
             opListPromises.push(
               annotation.getOperatorList(
                 partialEvaluator,

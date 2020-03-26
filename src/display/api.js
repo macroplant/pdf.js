@@ -880,6 +880,8 @@ class PDFDocumentProxy {
  * @property {boolean} [renderInteractiveForms] - Whether or not
  *                     interactive form elements are rendered in the display
  *                     layer. If so, we do not render them on canvas as well.
+ * @property {Array} [annotationsNotRendered] - (optional) annotations not
+ *                    rendered during page rendering.
  * @property {Array}  [transform] - Additional transform, applied
  *                    just before viewport transform.
  * @property {Object} [imageLayer] - An object that has beginLayout,
@@ -1023,6 +1025,7 @@ class PDFPageProxy {
     imageLayer = null,
     canvasFactory = null,
     background = null,
+    annotationsNotRendered = [],
   }) {
     if (this._stats) {
       this._stats.time("Overall");
@@ -1066,6 +1069,7 @@ class PDFPageProxy {
         pageIndex: this._pageIndex,
         intent: renderingIntent,
         renderInteractiveForms: renderInteractiveForms === true,
+        annotationsNotRendered: annotationsNotRendered,
       });
     }
 

@@ -12,3 +12,25 @@ such as e.g. `async`/`await`, `Promise`, and `ReadableStream`,
 please refer to the `es5` folder.
 
 See https://github.com/mozilla/pdf.js for learning and contributing.
+
+# Remove Annotations from render
+
+This build provides the functionality to remove annotations from pdf page api rendering context through `render` function.  
+
+```
+pdfJsPage.render({
+  canvasContext: context,
+  viewport: pdfJsPage.getViewport(),
+  annotationsNotRendered: [
+  AnnotationType.HIGHLIGHT
+  AnnotationType.TEXT
+  {annotationType: AnnotationType.WIDGET, fieldType: 'Tx'}
+  {annotationType: AnnotationType.WIDGET, fieldType: 'Btn', checkBox: true}
+  {annotationType: AnnotationType.WIDGET, fieldType: 'Btn', radioButton: true}
+  {annotationType: AnnotationType.WIDGET, fieldType: 'Ch'}
+]})
+```
+
+# Build
+
+source https://github.com/macroplant/pdf.js/tree/hide-annotations-pdfjs-dist
